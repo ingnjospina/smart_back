@@ -65,9 +65,10 @@ class Archivospruebas(models.Model):
 
 
 class Interruptores(models.Model):
-    idinterruptores = models.IntegerField(db_column='idInterruptores', primary_key=True)  # Field name made lowercase.
+    idinterruptores = models.AutoField(db_column='idInterruptores', primary_key=True)  # Field name made lowercase.
     nombre = models.CharField(max_length=100)
     descripcion = models.CharField(max_length=200)
+    deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'interruptores'
@@ -124,6 +125,7 @@ class Transformadores(models.Model):
     idtransformadores = models.AutoField(db_column='idTransformadores', primary_key=True)  # Field name made lowercase.
     nombre = models.CharField(max_length=100)
     descripcion = models.CharField(max_length=200)
+    deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'transformadores'
