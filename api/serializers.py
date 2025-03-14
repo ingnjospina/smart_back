@@ -14,7 +14,8 @@ from .models import (
     Analisisgasesdisueltos,
     Alertas,
     Transformadores,
-    Interruptores
+    Interruptores,
+    MedicionesInterruptores
 )
 
 User = get_user_model()
@@ -621,3 +622,9 @@ class InterruptoresSerializer(serializers.ModelSerializer):
     class Meta:
         model = Interruptores
         exclude = ['deleted']
+
+
+class MedicionesInterruptoresSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MedicionesInterruptores
+        fields = '__all__'

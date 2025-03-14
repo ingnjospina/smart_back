@@ -1,20 +1,34 @@
-import os
 import json
+import os
 
-from rest_framework import status
-from rest_framework.decorators import permission_classes
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import get_user_model
-from .models import Alertas, Analisisaceitefisicoquimico, Analisisgasesdisueltos, MedicionesTransformadores, \
-    Transformadores, Interruptores
-from .serializers import AlertasSerializer, AnalisisAceiteFisicoQuimicoSerializer, AnalisisGasesDisueltosSerializer, \
-    LoginSerializer, TransformadoresSerializer, UsuarioSerializer, MedicionesTransformadoresSerializer, \
-    InterruptoresSerializer
-from .permissions import IsAdmin, IsTecnicoOrAdmin
 from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .models import (
+    Alertas,
+    Analisisaceitefisicoquimico,
+    Analisisgasesdisueltos,
+    MedicionesTransformadores,
+    Transformadores,
+    Interruptores,
+    MedicionesInterruptores
+)
+from .permissions import IsAdmin, IsTecnicoOrAdmin
+from .serializers import (
+    AlertasSerializer,
+    AnalisisAceiteFisicoQuimicoSerializer,
+    AnalisisGasesDisueltosSerializer,
+    LoginSerializer,
+    TransformadoresSerializer,
+    UsuarioSerializer,
+    MedicionesTransformadoresSerializer,
+    InterruptoresSerializer,
+    MedicionesInterruptoresSerializer
+)
 
 User = get_user_model()
 
@@ -392,3 +406,54 @@ class InterruptoresDetailView(APIView):
                 {"message": "Ocurrió un error al eliminar el interruptor.", "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class MedicionesInterruptoresListView(APIView):
+    permission_classes = [IsTecnicoOrAdmin]
+
+    def get(self, request, *args, **kwargs):
+        queryset = MedicionesInterruptores.objects.all()
+        serializer = MedicionesInterruptoresSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        serializer = MedicionesInterruptoresSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(
+                    {"message": "Medición registrada exitosamente.", "data": serializer.data},
+                    status=status.HTTP_201_CREATED
+                )
+            except Exception as e:
+                return Response(
+                    {"message": "Ocurrió un error al guardar los datos.", "error": str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class MedicionesInterruptoresDetailView(APIView):
+    permission_classes = [IsTecnicoOrAdmin]
+
+    def get(self, request, pk, *args, **kwargs):
+        medicion = get_object_or_404(MedicionesInterruptores, pk=pk)
+        serializer = MedicionesInterruptoresSerializer(medicion)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, pk, *args, **kwargs):
+        medicion = get_object_or_404(MedicionesInterruptores, pk=pk)
+        serializer = MedicionesInterruptoresSerializer(medicion, data=request.data, partial=True)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(
+                    {"message": "Medición actualizada exitosamente.", "data": serializer.data},
+                    status=status.HTTP_200_OK
+                )
+            except Exception as e:
+                return Response(
+                    {"message": "Ocurrió un error al actualizar los datos.", "error": str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

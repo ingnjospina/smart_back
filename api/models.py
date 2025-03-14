@@ -109,13 +109,13 @@ class MedicionesTransformadores(models.Model):
         db_table = 'mediciones_transformadores'
 
 
-class Medicionesinterruptores(models.Model):
-    idmediciones_interruptores = models.IntegerField(db_column='idMediciones_Interruptores', primary_key=True)  # Field name made lowercase.
+class MedicionesInterruptores(models.Model):
+    idMediciones_Interruptores = models.AutoField(primary_key=True)
     fecha = models.DateTimeField()
     corriente_nominal = models.DecimalField(max_digits=10, decimal_places=2)
     tension_operacion = models.DecimalField(max_digits=10, decimal_places=2)
     tiempo_operacion = models.DecimalField(max_digits=10, decimal_places=2)
-    interruptores_idinterruptores = models.ForeignKey(Interruptores, on_delete=models.CASCADE, db_column='Interruptores_idInterruptores', blank=True, null=True)  # Field name made lowercase.
+    interruptor = models.ForeignKey(Interruptores, on_delete=models.CASCADE, db_column='Interruptores_idInterruptores')
 
     class Meta:
         db_table = 'medicionesinterruptores'

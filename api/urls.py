@@ -1,8 +1,22 @@
 from django.urls import path
 
-from .views import AlertasListView, LoginView, MedicionesCreateView, MedicionesFilesView, MedicionesListView, \
-    MedicionesOne, MedicionesUpdateView, TranformadoresListView, UsuarioDetailView, UsuarioListCreateView, \
-    InterruptoresListView, InterruptoresDetailView, TransformadoresDetailView
+from .views import (
+    AlertasListView,
+    LoginView,
+    MedicionesCreateView,
+    MedicionesFilesView,
+    MedicionesListView,
+    MedicionesOne,
+    MedicionesUpdateView,
+    TranformadoresListView,
+    UsuarioDetailView,
+    UsuarioListCreateView,
+    InterruptoresListView,
+    InterruptoresDetailView,
+    TransformadoresDetailView,
+    MedicionesInterruptoresListView,
+    MedicionesInterruptoresDetailView
+)
 
 
 def name():
@@ -34,5 +48,10 @@ urlpatterns = [
     # Interruptores
     path('interruptores/', InterruptoresListView.as_view(), name='interruptores-list'),
     path('interruptores/<int:pk>/', InterruptoresDetailView.as_view(), name='interruptores-detail'),
+
+    # Mediciones Interruptores
+    path('medicionesinterruptores/', MedicionesInterruptoresListView.as_view(), name='medicionesinterruptores-list'),
+    path('medicionesinterruptores/<int:pk>/', MedicionesInterruptoresDetailView.as_view(),
+         name='medicionesinterruptores-detail'),
 
 ]
