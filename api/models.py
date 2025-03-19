@@ -19,6 +19,21 @@ class Alertas(models.Model):
     class Meta:
         db_table = 'alertas'
 
+class AlertasInterruptores(models.Model):
+    id = models.AutoField(primary_key=True)
+    id_interruptor = models.ForeignKey('Interruptores', on_delete=models.CASCADE, db_column='idInterruptores')
+    valor_medicion = models.CharField(max_length=255)
+    tipo_alerta = models.CharField(max_length=255)
+    condicion = models.TextField()
+    recomendacion = models.TextField(null=True, blank=True)
+    fecha_medicion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'alertas_interruptores'
+
+    def __str__(self):
+        return f"Alerta {self.id} - {self.tipo_alerta}"
+
 
 class Analisisaceitefisicoquimico(models.Model):
     idanalisisaceitefisicoquimico = models.AutoField(db_column='idAnalisisAceiteFisicoQuimico', primary_key=True)  # Field name made lowercase.
@@ -111,14 +126,30 @@ class MedicionesTransformadores(models.Model):
 
 class MedicionesInterruptores(models.Model):
     idMediciones_Interruptores = models.AutoField(primary_key=True)
-    fecha = models.DateTimeField()
-    corriente_nominal = models.DecimalField(max_digits=10, decimal_places=2)
-    tension_operacion = models.DecimalField(max_digits=10, decimal_places=2)
-    tiempo_operacion = models.DecimalField(max_digits=10, decimal_places=2)
-    interruptor = models.ForeignKey(Interruptores, on_delete=models.CASCADE, db_column='Interruptores_idInterruptores')
+    numero_operaciones = models.PositiveIntegerField()
+    tiempo_apertura = models.DecimalField(max_digits=6, decimal_places=3)  # Tiempo en milisegundos o segundos
+    tiempo_cierre = models.DecimalField(max_digits=6, decimal_places=3)
+    corriente_falla = models.DecimalField(max_digits=8, decimal_places=3)  # Puede manejar valores grandes
+    resistencia_contactos = models.DecimalField(max_digits=6, decimal_places=3)
+    Interruptores_idInterruptores = models.IntegerField()  # Relación con la tabla `interruptores`
 
     class Meta:
-        db_table = 'medicionesinterruptores'
+        db_table = "mediciones_interruptores"
+
+    def __str__(self):
+        return f"Medición Interruptor {self.idMediciones_Interruptores}"
+
+
+# class MedicionesInterruptores(models.Model):
+#     idMediciones_Interruptores = models.AutoField(primary_key=True)
+#     fecha = models.DateTimeField()
+#     corriente_nominal = models.DecimalField(max_digits=10, decimal_places=2)
+#     tension_operacion = models.DecimalField(max_digits=10, decimal_places=2)
+#     tiempo_operacion = models.DecimalField(max_digits=10, decimal_places=2)
+#     interruptor = models.ForeignKey(Interruptores, on_delete=models.CASCADE, db_column='Interruptores_idInterruptores')
+#
+#     class Meta:
+#         db_table = 'medicionesinterruptores'
 
 
 class Transformadores(models.Model):

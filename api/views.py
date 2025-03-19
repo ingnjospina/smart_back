@@ -2,6 +2,7 @@ import json
 import os
 
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -15,7 +16,7 @@ from .models import (
     MedicionesTransformadores,
     Transformadores,
     Interruptores,
-    MedicionesInterruptores
+    AlertasInterruptores
 )
 from .permissions import IsAdmin, IsTecnicoOrAdmin
 from .serializers import (
@@ -27,7 +28,8 @@ from .serializers import (
     UsuarioSerializer,
     MedicionesTransformadoresSerializer,
     InterruptoresSerializer,
-    MedicionesInterruptoresSerializer
+    MedicionesInterruptoresSerializer,
+    AlertasInterruptoresSerializer
 )
 
 User = get_user_model()
@@ -408,21 +410,31 @@ class InterruptoresDetailView(APIView):
             )
 
 
-class MedicionesInterruptoresListView(APIView):
-    permission_classes = [IsTecnicoOrAdmin]
-
-    def get(self, request, *args, **kwargs):
-        queryset = MedicionesInterruptores.objects.all()
-        serializer = MedicionesInterruptoresSerializer(queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+class MedicionesInterruptoresCreateView(APIView):
+    permission_classes = [IsAuthenticated, IsTecnicoOrAdmin]
 
     def post(self, request, *args, **kwargs):
         serializer = MedicionesInterruptoresSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                serializer.save()
+                medicion = serializer.save()
+
+                # Crear la carpeta para almacenar los documentos JSON
+                # ruta_carpeta = os.path.join(os.getcwd(), "mediciones", "interruptores")
+                # os.makedirs(ruta_carpeta, exist_ok=True)
+                #
+                # # Guardar la información adicional en un archivo JSON
+                # ruta_archivo = os.path.join(ruta_carpeta,
+                #                             f"medicion_{medicion.idMediciones_Interruptores}.json")
+                #
+                # with open(ruta_archivo, 'w', encoding='utf-8') as archivo_json:
+                #     json.dump(request.data['docs'], archivo_json, ensure_ascii=False, indent=4)
+
                 return Response(
-                    {"message": "Medición registrada exitosamente.", "data": serializer.data},
+                    {
+                        "message": "Medición de interruptor registrada exitosamente.",
+                        "data": serializer.data,
+                    },
                     status=status.HTTP_201_CREATED
                 )
             except Exception as e:
@@ -433,27 +445,51 @@ class MedicionesInterruptoresListView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class MedicionesInterruptoresDetailView(APIView):
-    permission_classes = [IsTecnicoOrAdmin]
+class AlertasInterruptoresListView(APIView):
+    permission_classes = [IsAuthenticated, IsTecnicoOrAdmin]
 
-    def get(self, request, pk, *args, **kwargs):
-        medicion = get_object_or_404(MedicionesInterruptores, pk=pk)
-        serializer = MedicionesInterruptoresSerializer(medicion)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    def get(self, request, *args, **kwargs):
+        alertas = []
+        id_interruptor = request.query_params.get('idInterruptor')
+        tipo_alerta = request.query_params.get('tipo_alerta')
+        condicion = request.query_params.get('condicion')
+        fecha_inicio = request.query_params.get('fecha_inicio')
+        fecha_fin = request.query_params.get('fecha_fin')
 
-    def put(self, request, pk, *args, **kwargs):
-        medicion = get_object_or_404(MedicionesInterruptores, pk=pk)
-        serializer = MedicionesInterruptoresSerializer(medicion, data=request.data, partial=True)
-        if serializer.is_valid():
+        filters = Q()
+
+        if id_interruptor:
+            filters &= Q(id_interruptor=id_interruptor)
+
+        if tipo_alerta:
+            filters &= Q(tipo_alerta__icontains=tipo_alerta)  # Búsqueda flexible
+
+        if condicion:
+            filters &= Q(condicion__icontains=condicion)  # Búsqueda flexible en texto
+
+        if fecha_inicio and fecha_fin:
+            filters &= Q(fecha_medicion__range=[fecha_inicio, fecha_fin])
+        elif fecha_inicio:
+            filters &= Q(fecha_medicion__gte=fecha_inicio)
+        elif fecha_fin:
+            filters &= Q(fecha_medicion__lte=fecha_fin)
+
+        # Aplicar filtros
+        queryset = AlertasInterruptores.objects.filter(filters)
+        alertas_serializadas = AlertasInterruptoresSerializer(queryset, many=True).data
+
+        # Añadir información del interruptor
+        for alerta in alertas_serializadas:
             try:
-                serializer.save()
-                return Response(
-                    {"message": "Medición actualizada exitosamente.", "data": serializer.data},
-                    status=status.HTTP_200_OK
-                )
-            except Exception as e:
-                return Response(
-                    {"message": "Ocurrió un error al actualizar los datos.", "error": str(e)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                interruptor = Interruptores.objects.get(
+                    idinterruptores=alerta['id_interruptor'])  # FIX: Campo corregido
+                interruptor_serializado = InterruptoresSerializer(interruptor).data
+            except Interruptores.DoesNotExist:
+                interruptor_serializado = None  # Si el interruptor no existe, se devuelve None
+
+            alertas.append({
+                "alerta": alerta,
+                "interruptor": interruptor_serializado
+            })
+
+        return Response(alertas, status=status.HTTP_200_OK)

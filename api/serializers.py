@@ -15,7 +15,8 @@ from .models import (
     Alertas,
     Transformadores,
     Interruptores,
-    MedicionesInterruptores
+    MedicionesInterruptores,
+    AlertasInterruptores
 )
 
 User = get_user_model()
@@ -607,6 +608,12 @@ class MedicionesTransformadoresSerializer(serializers.ModelSerializer):
 class AlertasSerializer(serializers.ModelSerializer):
     class Meta:
         model = Alertas
+        fields = '__all__'
+
+
+class AlertasInterruptoresSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AlertasInterruptores
         fields = '__all__'
 
 

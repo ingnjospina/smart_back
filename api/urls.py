@@ -14,8 +14,8 @@ from .views import (
     InterruptoresListView,
     InterruptoresDetailView,
     TransformadoresDetailView,
-    MedicionesInterruptoresListView,
-    MedicionesInterruptoresDetailView
+    MedicionesInterruptoresCreateView,
+    AlertasInterruptoresListView
 )
 
 
@@ -49,9 +49,9 @@ urlpatterns = [
     path('interruptores/', InterruptoresListView.as_view(), name='interruptores-list'),
     path('interruptores/<int:pk>/', InterruptoresDetailView.as_view(), name='interruptores-detail'),
 
-    # Mediciones Interruptores
-    path('medicionesinterruptores/', MedicionesInterruptoresListView.as_view(), name='medicionesinterruptores-list'),
-    path('medicionesinterruptores/<int:pk>/', MedicionesInterruptoresDetailView.as_view(),
-         name='medicionesinterruptores-detail'),
+    path('interruptores/alertas/', AlertasInterruptoresListView.as_view(), name='alertas-interruptores-list'),
 
+    # Mediciones Interruptores
+    path('medicionesinterruptores/create/', MedicionesInterruptoresCreateView.as_view(),
+         name='mediciones_interruptores_create'),
 ]
