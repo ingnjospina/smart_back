@@ -10,18 +10,17 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 import os
-import pymysql
-
-from dotenv import load_dotenv
 from datetime import timedelta
 from pathlib import Path
+
+import pymysql
+from dotenv import load_dotenv
 
 load_dotenv()
 pymysql.install_as_MySQLdb()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -33,7 +32,6 @@ SECRET_KEY = 'django-insecure-%rtzb_n#7k1b0jsp+_++1&6^-^0x2wv8%&*z4vxdaoe!cw)01&
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -53,7 +51,7 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = 'api.Usuario'
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -83,20 +81,18 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'Gestion_Backend.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME'),      # Reemplaza con el nombre de tu base de datos
-        'USER': os.getenv('DB_USER'),          # Reemplaza con el usuario de tu base de datos
-        'PASSWORD': os.getenv('DB_PASSWORD'),   # Reemplaza con la contraseña de tu usuario
-        'HOST': os.getenv('DB_HOST', 'localhost'),              # O la dirección IP del servidor MySQL si no está en el mismo equipo
-        'PORT': os.getenv('DB_PORT', '3306')  
+        'NAME': os.getenv('DB_NAME'),  # Reemplaza con el nombre de tu base de datos
+        'USER': os.getenv('DB_USER'),  # Reemplaza con el usuario de tu base de datos
+        'PASSWORD': os.getenv('DB_PASSWORD'),  # Reemplaza con la contraseña de tu usuario
+        'HOST': os.getenv('DB_HOST', 'localhost'),  # O la dirección IP del servidor MySQL si no está en el mismo equipo
+        'PORT': os.getenv('DB_PORT', '3306')
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -116,7 +112,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
@@ -127,7 +122,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
@@ -167,7 +161,7 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
 ]
 
-#Configuración CORS
+# Configuración CORS
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -191,3 +185,13 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
     "*",
 ]
+
+# Configuración de MailHog para Django
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 1025))  # Asegurar que sea un número
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'False') == 'True'  # Convertir a booleano
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'  # Convertir a booleano
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@example.com')

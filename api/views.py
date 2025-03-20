@@ -9,6 +9,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from services.AlertaInterruptorEmail import AlertaInterruptorEmail
+from services.InterruptorPotencia import InterruptorPotencia
 from .models import (
     Alertas,
     Analisisaceitefisicoquimico,
@@ -417,23 +419,38 @@ class MedicionesInterruptoresCreateView(APIView):
         serializer = MedicionesInterruptoresSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                medicion = serializer.save()
+                N_O = float(serializer.validated_data.get("numero_operaciones"))
+                T_A = float(serializer.validated_data.get("tiempo_apertura"))
+                T_C = float(serializer.validated_data.get("tiempo_cierre"))
+                I_F = float(serializer.validated_data.get("corriente_falla"))
+                R_C = float(serializer.validated_data.get("resistencia_contactos"))
+                id_interruptor = serializer.validated_data.get("Interruptores_idInterruptores")
 
-                # Crear la carpeta para almacenar los documentos JSON
-                # ruta_carpeta = os.path.join(os.getcwd(), "mediciones", "interruptores")
-                # os.makedirs(ruta_carpeta, exist_ok=True)
-                #
-                # # Guardar la información adicional en un archivo JSON
-                # ruta_archivo = os.path.join(ruta_carpeta,
-                #                             f"medicion_{medicion.idMediciones_Interruptores}.json")
-                #
-                # with open(ruta_archivo, 'w', encoding='utf-8') as archivo_json:
-                #     json.dump(request.data['docs'], archivo_json, ensure_ascii=False, indent=4)
+                id_interruptor_obj = Interruptores.objects.get(idinterruptores=id_interruptor)
+
+                interruptor = InterruptorPotencia(N_O, T_A, T_C, I_F, R_C)
+                _, _, I_M = interruptor.calcular_indices()
+
+                # Generar alerta y enviar email si es necesario
+                alerta = AlertaInterruptorEmail.generar_alerta_interruptor(I_M, id_interruptor_obj)
+
+                # Guardar la alerta en la base de datos
+                alerta_db = AlertasInterruptores.objects.create(
+                    id_interruptor=id_interruptor_obj,
+                    valor_medicion=f"{I_M:.2f}",
+                    tipo_alerta=alerta["color_alerta"],
+                    condicion=alerta["mensaje_condicion"],
+                    recomendacion=alerta["recomendacion"]
+                )
 
                 return Response(
                     {
                         "message": "Medición de interruptor registrada exitosamente.",
                         "data": serializer.data,
+                        "valor_medicion": f"{I_M:.2f}",
+                        "tipo_alerta": alerta["color_alerta"],
+                        "condicion": alerta["mensaje_condicion"],
+                        "id_alerta": alerta_db.id
                     },
                     status=status.HTTP_201_CREATED
                 )

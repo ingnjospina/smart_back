@@ -52,6 +52,6 @@ urlpatterns = [
     path('interruptores/alertas/', AlertasInterruptoresListView.as_view(), name='alertas-interruptores-list'),
 
     # Mediciones Interruptores
-    path('medicionesinterruptores/create/', MedicionesInterruptoresCreateView.as_view(),
+    path('interruptores/medicion/create/', MedicionesInterruptoresCreateView.as_view(),
          name='mediciones_interruptores_create'),
 ]
