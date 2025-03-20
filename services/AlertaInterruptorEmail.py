@@ -44,15 +44,59 @@ class AlertaInterruptorEmail:
 
             # Generar el cuerpo del email en HTML
             html_body = f"""
-                <html>
-                <body>
-                    <h1 style="color: red;">⚠️ Alerta Crítica Detectada</h1>
-                    <p><strong>Interruptor:</strong> {id_interruptor.nombre}</p>
-                    <p><strong>Condición:</strong> {alerta['mensaje_condicion']}</p>
-                    <p><strong>Recomendación:</strong> {alerta['recomendacion']}</p>
-                    <p><strong>Tipo de Alerta:</strong> {alerta['color_alerta']}</p>
-                </body>
-                </html>
+            <html>
+            <head>
+                <style>
+                    body {{
+                        background-color: #ffffff;
+                        font-family: Arial, sans-serif;
+                        text-align: center;
+                        margin: 0;
+                        padding: 0;
+                    }}
+                    .container {{
+                        width: 100%;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        min-height: 100vh;
+                    }}
+                    .alert-box {{
+                        background-color: #f8f8f8;
+                        border-radius: 10px;
+                        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+                        padding: 20px;
+                        width: 60%;
+                        max-width: 500px;
+                        text-align: left;
+                    }}
+                    h1 {{
+                        color: red;
+                        font-size: 24px;
+                        text-align: center;
+                    }}
+                    p {{
+                        font-size: 16px;
+                        color: #333;
+                        margin: 8px 0;
+                    }}
+                    .highlight {{
+                        font-weight: bold;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="alert-box">
+                        <h1>⚠️ Alerta Crítica Detectada</h1>
+                        <p><span class="highlight">Interruptor:</span> {id_interruptor.nombre}</p>
+                        <p><span class="highlight">Condición:</span> {alerta['mensaje_condicion']}</p>
+                        <p><span class="highlight">Recomendación:</span> {alerta['recomendacion']}</p>
+                        <p><span class="highlight">Tipo de Alerta:</span> {alerta['color_alerta']}</p>
+                    </div>
+                </div>
+            </body>
+            </html>
             """
 
             if os.getenv('ENABLE_MAILHOG', 'False') == 'True':
