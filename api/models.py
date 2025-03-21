@@ -1,4 +1,3 @@
-
 from django.utils import timezone
 from django.contrib.auth.models import Group, Permission
 from django.db import models
@@ -13,11 +12,16 @@ class Alertas(models.Model):
     recomendacion = models.CharField(max_length=200)
     color_alerta = models.CharField(max_length=200)
     fecha_generacion = models.DateTimeField(default=timezone.now)
-    mediciones_transformadores = models.ForeignKey('MedicionesTransformadores', on_delete=models.CASCADE, db_column='Mediciones_Transformadores_idMediciones_Transformadores', blank=True, null=True)
-    mediciones_interruptores = models.ForeignKey('Medicionesinterruptores', on_delete=models.CASCADE, db_column='MedicionesInterruptores_idMediciones_Interruptores', blank=True, null=True)
+    mediciones_transformadores = models.ForeignKey('MedicionesTransformadores', on_delete=models.CASCADE,
+                                                   db_column='Mediciones_Transformadores_idMediciones_Transformadores',
+                                                   blank=True, null=True)
+    mediciones_interruptores = models.ForeignKey('Medicionesinterruptores', on_delete=models.CASCADE,
+                                                 db_column='MedicionesInterruptores_idMediciones_Interruptores',
+                                                 blank=True, null=True)
 
     class Meta:
         db_table = 'alertas'
+
 
 class AlertasInterruptores(models.Model):
     id = models.AutoField(primary_key=True)
@@ -36,21 +40,25 @@ class AlertasInterruptores(models.Model):
 
 
 class Analisisaceitefisicoquimico(models.Model):
-    idanalisisaceitefisicoquimico = models.AutoField(db_column='idAnalisisAceiteFisicoQuimico', primary_key=True)  # Field name made lowercase.
+    idanalisisaceitefisicoquimico = models.AutoField(db_column='idAnalisisAceiteFisicoQuimico',
+                                                     primary_key=True)  # Field name made lowercase.
     rigidez_dieletrica = models.DecimalField(max_digits=10, decimal_places=2)
     tension_interfacial = models.DecimalField(max_digits=10, decimal_places=2)
     numero_acidez = models.DecimalField(max_digits=10, decimal_places=2)
     contenido_humedad = models.DecimalField(max_digits=10, decimal_places=2)
     color = models.DecimalField(max_digits=10, decimal_places=2)
     factor_potencia_liquido = models.DecimalField(max_digits=5, decimal_places=2)
-    mediciones_transformadores_idmediciones_transformadores = models.ForeignKey('MedicionesTransformadores', on_delete=models.CASCADE, db_column='Mediciones_Transformadores_idMediciones_Transformadores')  # Field name made lowercase.
+    mediciones_transformadores_idmediciones_transformadores = models.ForeignKey('MedicionesTransformadores',
+                                                                                on_delete=models.CASCADE,
+                                                                                db_column='Mediciones_Transformadores_idMediciones_Transformadores')  # Field name made lowercase.
 
     class Meta:
         db_table = 'analisisaceitefisicoquimico'
 
 
 class Analisisgasesdisueltos(models.Model):
-    idanalisisgasesdisueltos = models.AutoField(db_column='idAnalisisGasesDisueltos', primary_key=True)  # Field name made lowercase.
+    idanalisisgasesdisueltos = models.AutoField(db_column='idAnalisisGasesDisueltos',
+                                                primary_key=True)  # Field name made lowercase.
     hidrogeno = models.DecimalField(max_digits=10, decimal_places=2)
     metano = models.DecimalField(max_digits=10, decimal_places=2)
     etano = models.DecimalField(max_digits=10, decimal_places=2)
@@ -58,7 +66,9 @@ class Analisisgasesdisueltos(models.Model):
     acetileno = models.DecimalField(max_digits=10, decimal_places=2)
     dioxido_carbono = models.DecimalField(max_digits=10, decimal_places=2)
     monoxido_carbono = models.DecimalField(max_digits=10, decimal_places=2)
-    mediciones_transformadores_idmediciones_transformadores = models.ForeignKey('MedicionesTransformadores', on_delete=models.CASCADE, db_column='Mediciones_Transformadores_idMediciones_Transformadores')  # Field name made lowercase.
+    mediciones_transformadores_idmediciones_transformadores = models.ForeignKey('MedicionesTransformadores',
+                                                                                on_delete=models.CASCADE,
+                                                                                db_column='Mediciones_Transformadores_idMediciones_Transformadores')  # Field name made lowercase.
 
     class Meta:
         db_table = 'analisisgasesdisueltos'
@@ -69,7 +79,8 @@ class Archivospruebas(models.Model):
         ('pdf', 'pdf'),
         ('excel', 'excel'),
     ]
-    idarchivospruebas = models.IntegerField(db_column='idArchivosPruebas', primary_key=True)  # Field name made lowercase.
+    idarchivospruebas = models.IntegerField(db_column='idArchivosPruebas',
+                                            primary_key=True)  # Field name made lowercase.
     nombre_archivo = models.CharField(max_length=255)
     tipo_archivo = models.CharField(max_length=5, choices=TIPO_ARCHIVO_CHOICES)
     ruta_archivo = models.CharField(max_length=255)
@@ -83,6 +94,8 @@ class Interruptores(models.Model):
     idinterruptores = models.AutoField(db_column='idInterruptores', primary_key=True)  # Field name made lowercase.
     nombre = models.CharField(max_length=100)
     descripcion = models.CharField(max_length=200)
+    niveles_tension = models.CharField(max_length=100)
+    subestacion = models.CharField(max_length=100)
     deleted = models.BooleanField(default=False)
 
     class Meta:
@@ -117,8 +130,9 @@ class MedicionesTransformadores(models.Model):
 
     hi_ponderado = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True)
 
-    #relación
-    transformadores = models.ForeignKey('Transformadores', on_delete=models.CASCADE, db_column='Transformadores_idTransformadores')
+    # relación
+    transformadores = models.ForeignKey('Transformadores', on_delete=models.CASCADE,
+                                        db_column='Transformadores_idTransformadores')
 
     class Meta:
         db_table = 'mediciones_transformadores'
@@ -161,6 +175,7 @@ class Transformadores(models.Model):
     class Meta:
         db_table = 'transformadores'
 
+
 class UsuarioManager(BaseUserManager):
     def create_user(self, correo, contrasena=None, **extra_fields):
         if not correo:
@@ -177,10 +192,11 @@ class UsuarioManager(BaseUserManager):
 
         return self.create_user(correo, contrasena, **extra_fields)
 
+
 class Usuario(AbstractBaseUser, PermissionsMixin):
     def get_current_time():
         return timezone.now()
-    
+
     ROL_CHOICES = [
         ('Técnico', 'Técnico'),
         ('Administrador', 'Administrador'),

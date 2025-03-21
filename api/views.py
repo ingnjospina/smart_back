@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime
 
 from django.contrib.auth import get_user_model
 from django.db.models import Q
@@ -440,7 +441,8 @@ class MedicionesInterruptoresCreateView(APIView):
                     valor_medicion=f"{I_M:.2f}",
                     tipo_alerta=alerta["color_alerta"],
                     condicion=alerta["mensaje_condicion"],
-                    recomendacion=alerta["recomendacion"]
+                    recomendacion=alerta["recomendacion"],
+                    fecha_medicion=datetime.now()
                 )
 
                 return Response(
@@ -450,7 +452,8 @@ class MedicionesInterruptoresCreateView(APIView):
                         "valor_medicion": f"{I_M:.2f}",
                         "tipo_alerta": alerta["color_alerta"],
                         "condicion": alerta["mensaje_condicion"],
-                        "id_alerta": alerta_db.id
+                        "id_alerta": alerta_db.id,
+                        "fecha_medicion": alerta_db.fecha_medicion.strftime("%Y-%m-%d %H:%M:%S")
                     },
                     status=status.HTTP_201_CREATED
                 )
