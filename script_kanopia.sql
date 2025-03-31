@@ -75,3 +75,20 @@ CREATE TABLE alertas_interruptores
 ALTER TABLE interruptores
     ADD COLUMN niveles_tension VARCHAR(50)  NOT NULL,
     ADD COLUMN subestacion     VARCHAR(100) NOT NULL;
+
+-- ###################################### NUEVO 31/03/2025 ######################################
+ALTER TABLE mediciones_interruptores
+ADD COLUMN tiempo_apertura_A DECIMAL(6, 3) AFTER numero_operaciones,
+ADD COLUMN tiempo_apertura_B DECIMAL(6, 3) AFTER tiempo_apertura_A,
+ADD COLUMN tiempo_apertura_C DECIMAL(6, 3) AFTER tiempo_apertura_B,
+ADD COLUMN tiempo_cierre_A DECIMAL(6, 3) AFTER tiempo_apertura_C,
+ADD COLUMN tiempo_cierre_B DECIMAL(6, 3) AFTER tiempo_cierre_A,
+ADD COLUMN tiempo_cierre_C DECIMAL(6, 3) AFTER tiempo_cierre_B,
+ADD COLUMN resistencia_contactos_R DECIMAL(6, 3) AFTER corriente_falla,
+ADD COLUMN resistencia_contactos_S DECIMAL(6, 3) AFTER resistencia_contactos_R,
+ADD COLUMN resistencia_contactos_T DECIMAL(6, 3) AFTER resistencia_contactos_S;
+
+ALTER TABLE mediciones_interruptores
+DROP COLUMN tiempo_apertura,
+DROP COLUMN tiempo_cierre,
+DROP COLUMN resistencia_contactos;

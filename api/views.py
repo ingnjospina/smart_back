@@ -419,16 +419,37 @@ class MedicionesInterruptoresCreateView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = MedicionesInterruptoresSerializer(data=request.data)
         if serializer.is_valid():
+            serializer.save()
             try:
+                # Obtener y validar los nuevos datos de apertura y cierre
                 N_O = float(serializer.validated_data.get("numero_operaciones"))
-                T_A = float(serializer.validated_data.get("tiempo_apertura"))
-                T_C = float(serializer.validated_data.get("tiempo_cierre"))
+
+                T_A_A = float(serializer.validated_data.get("tiempo_apertura_A"))
+                T_A_B = float(serializer.validated_data.get("tiempo_apertura_B"))
+                T_A_C = float(serializer.validated_data.get("tiempo_apertura_C"))
+
+                T_C_A = float(serializer.validated_data.get("tiempo_cierre_A"))
+                T_C_B = float(serializer.validated_data.get("tiempo_cierre_B"))
+                T_C_C = float(serializer.validated_data.get("tiempo_cierre_C"))
+
                 I_F = float(serializer.validated_data.get("corriente_falla"))
-                R_C = float(serializer.validated_data.get("resistencia_contactos"))
+
+                R_C_R = float(serializer.validated_data.get("resistencia_contactos_R"))
+                R_C_S = float(serializer.validated_data.get("resistencia_contactos_S"))
+                R_C_T = float(serializer.validated_data.get("resistencia_contactos_T"))
+
+                # Calcular promedio de resistencia de contactos
+                R_C = (R_C_R + R_C_S + R_C_T) / 3
+
                 id_interruptor = serializer.validated_data.get("Interruptores_idInterruptores")
 
                 id_interruptor_obj = Interruptores.objects.get(idinterruptores=id_interruptor)
 
+                # Calcular promedio de tiempos de apertura y cierre
+                T_A = (T_A_A + T_A_B + T_A_C) / 3
+                T_C = (T_C_A + T_C_B + T_C_C) / 3
+
+                # Crear instancia de interruptor con los promedios calculados
                 interruptor = InterruptorPotencia(N_O, T_A, T_C, I_F, R_C)
                 _, _, I_M = interruptor.calcular_indices()
 
