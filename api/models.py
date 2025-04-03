@@ -143,21 +143,21 @@ class MedicionesInterruptores(models.Model):
     numero_operaciones = models.PositiveIntegerField()
 
     # Nuevas columnas para tiempo_apertura
-    tiempo_apertura_A = models.DecimalField(max_digits=6, decimal_places=3)
-    tiempo_apertura_B = models.DecimalField(max_digits=6, decimal_places=3)
-    tiempo_apertura_C = models.DecimalField(max_digits=6, decimal_places=3)
+    tiempo_apertura_A = models.DecimalField(max_digits=10, decimal_places=6)
+    tiempo_apertura_B = models.DecimalField(max_digits=10, decimal_places=6)
+    tiempo_apertura_C = models.DecimalField(max_digits=10, decimal_places=6)
 
     # Nuevas columnas para tiempo_cierre
-    tiempo_cierre_A = models.DecimalField(max_digits=6, decimal_places=3)
-    tiempo_cierre_B = models.DecimalField(max_digits=6, decimal_places=3)
-    tiempo_cierre_C = models.DecimalField(max_digits=6, decimal_places=3)
+    tiempo_cierre_A = models.DecimalField(max_digits=10, decimal_places=6)
+    tiempo_cierre_B = models.DecimalField(max_digits=10, decimal_places=6)
+    tiempo_cierre_C = models.DecimalField(max_digits=10, decimal_places=6)
 
-    corriente_falla = models.DecimalField(max_digits=8, decimal_places=3)
+    corriente_falla = models.DecimalField(max_digits=10, decimal_places=6)
 
     # Nuevas columnas para resistencia de contactos
-    resistencia_contactos_R = models.DecimalField(max_digits=6, decimal_places=3)
-    resistencia_contactos_S = models.DecimalField(max_digits=6, decimal_places=3)
-    resistencia_contactos_T = models.DecimalField(max_digits=6, decimal_places=3)
+    resistencia_contactos_R = models.DecimalField(max_digits=10, decimal_places=6)
+    resistencia_contactos_S = models.DecimalField(max_digits=10, decimal_places=6)
+    resistencia_contactos_T = models.DecimalField(max_digits=10, decimal_places=6)
 
     Interruptores_idInterruptores = models.IntegerField()  # Relación con la tabla `interruptores`
 
