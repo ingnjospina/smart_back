@@ -82,40 +82,43 @@ class AlertaInterruptorEmail:
             <head>
                 <style>
                     body {{
-                        background-color: #ffffff;
-                        font-family: Arial, sans-serif;
-                        text-align: center;
-                        margin: 0;
+                        background-color: #f0f0f5;
+                        font-family: 'Arial', sans-serif;
                         padding: 0;
+                        margin: 0;
                     }}
                     .container {{
-                        width: 100%;
                         display: flex;
                         justify-content: center;
                         align-items: center;
-                        min-height: 100vh;
+                        padding: 20px;
+                        background-color: #f0f0f5;
                     }}
                     .alert-box {{
-                        background-color: #f8f8f8;
-                        border-radius: 10px;
-                        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
-                        padding: 20px;
-                        width: 60%;
-                        max-width: 500px;
-                        text-align: left;
+                        background-color: white;
+                        border-radius: 12px;
+                        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                        padding: 30px;
+                        max-width: 600px;
+                        width: 100%;
+                        margin: auto;
+                        border-top: 6px solid {color_texto};
                     }}
                     h1 {{
-                        color: red;
-                        font-size: 24px;
+                        color: #D32F2F;
+                        font-size: 28px;
                         text-align: center;
+                        margin-bottom: 20px;
                     }}
                     p {{
                         font-size: 16px;
                         color: #333;
+                        line-height: 1.6;
                         margin: 8px 0;
                     }}
                     .highlight {{
                         font-weight: bold;
+                        color: #000;
                     }}
                     .alert-color {{
                         color: {color_texto}; /* Color dinámico según la alerta */
