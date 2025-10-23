@@ -3,6 +3,11 @@ import smtplib
 from decimal import Decimal
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import joblib
+import numpy as np
+from datetime import timedelta, datetime
+from django.utils import timezone
+from django.conf import settings
 
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
@@ -16,7 +21,8 @@ from .models import (
     Transformadores,
     Interruptores,
     MedicionesInterruptores,
-    AlertasInterruptores
+    AlertasInterruptores,
+    Pronosticos
 )
 
 User = get_user_model()
@@ -635,3 +641,120 @@ class MedicionesInterruptoresSerializer(serializers.ModelSerializer):
     class Meta:
         model = MedicionesInterruptores
         fields = '__all__'
+
+
+class PronosticosSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Pronosticos
+        fields = '__all__'
+        read_only_fields = ['probabilidad_mantenimiento', 'fecha_programada', 'fecha_optima_sugerida']
+
+    def validate(self, data):
+        # Validar que se proporcione transformador o interruptor según el tipo_equipo
+        if data['tipo_equipo'] == 'transformador' and not data.get('transformador'):
+            raise serializers.ValidationError({"transformador": "Debe proporcionar un transformador."})
+        if data['tipo_equipo'] == 'interruptor' and not data.get('interruptor'):
+            raise serializers.ValidationError({"interruptor": "Debe proporcionar un interruptor."})
+
+        # Validaciones de valores positivos
+        if data['tiempo_apertura'] <= 0:
+            raise serializers.ValidationError({"tiempo_apertura": "Debe ser mayor que 0."})
+        if data['tiempo_cierre'] <= 0:
+            raise serializers.ValidationError({"tiempo_cierre": "Debe ser mayor que 0."})
+        if data['numero_operaciones'] <= 0:
+            raise serializers.ValidationError({"numero_operaciones": "Debe ser mayor que 0."})
+        if data['corriente_falla'] <= 0:
+            raise serializers.ValidationError({"corriente_falla": "Debe ser mayor que 0."})
+        if data['resistencia_contactos'] <= 0:
+            raise serializers.ValidationError({"resistencia_contactos": "Debe ser mayor que 0."})
+
+        return data
+
+    def calcular_campos_pronostico(self, validated_data):
+        """
+        Calcula los campos de pronóstico usando el modelo de machine learning.
+        """
+        # Cargar el modelo previamente entrenado
+        modelo_path = os.path.join(settings.BASE_DIR, "modelo_mantenimiento-1.pkl")
+        print(modelo_path)
+
+        if not os.path.exists(modelo_path):
+            raise serializers.ValidationError({
+                "error": "El archivo del modelo de machine learning no existe en la ruta especificada."
+            })
+
+        try:
+            modelo = joblib.load(modelo_path)
+        except Exception as e:
+            raise serializers.ValidationError({
+                "error": f"Error al cargar el modelo de machine learning: {str(e)}"
+            })
+
+        try:
+            # Preparar entrada para el modelo
+            entrada = np.array([
+                float(validated_data['tiempo_apertura']),
+                float(validated_data['tiempo_cierre']),
+                float(validated_data['numero_operaciones']),
+                float(validated_data['corriente_falla']),
+                float(validated_data['resistencia_contactos'])
+            ]).reshape(1, -1)
+
+        except (KeyError, ValueError, TypeError) as e:
+            raise serializers.ValidationError({
+                "error": f"Error al preparar los datos de entrada para el modelo: {str(e)}"
+            })
+
+        try:
+            # Obtener probabilidad de mantenimiento
+            probabilidad = modelo.predict_proba(entrada)[0][1]  # probabilidad de clase 1 (mantenimiento)
+
+            # Validar que la probabilidad esté en el rango esperado
+            if not (0 <= probabilidad <= 1):
+                raise ValueError(f"Probabilidad fuera de rango: {probabilidad}")
+
+        except (IndexError, AttributeError) as e:
+            raise serializers.ValidationError({
+                "error": f"El modelo no pudo generar una predicción válida: {str(e)}"
+            })
+        except Exception as e:
+            raise serializers.ValidationError({
+                "error": f"Error al ejecutar la predicción del modelo: {str(e)}"
+            })
+
+        try:
+            # Fecha programada (cada 3 años desde último mantenimiento)
+            fecha_mantenimiento = validated_data['fecha_mantenimiento']
+            fecha_programada = fecha_mantenimiento + timedelta(days=3*365)
+
+            # Calcular fecha óptima proporcional a la severidad
+            hoy = timezone.now().date()
+            dias_totales = (fecha_programada - hoy).days
+            dias_ajustados = int(dias_totales * (1 - probabilidad))
+            fecha_optima = hoy + timedelta(days=dias_ajustados)
+
+        except (KeyError, TypeError, AttributeError) as e:
+            raise serializers.ValidationError({
+                "error": f"Error al calcular las fechas de mantenimiento: {str(e)}"
+            })
+
+        try:
+            return {
+                'probabilidad_mantenimiento': Decimal(round(probabilidad * 100, 2)),
+                'fecha_programada': fecha_programada,
+                'fecha_optima_sugerida': fecha_optima
+            }
+        except Exception as e:
+            raise serializers.ValidationError({
+                "error": f"Error al preparar los campos calculados: {str(e)}"
+            })
+
+    def create(self, validated_data):
+        # Calcular campos de pronóstico
+        campos_calculados = self.calcular_campos_pronostico(validated_data)
+
+        # Agregar campos calculados a los datos validados
+        validated_data.update(campos_calculados)
+
+        # Crear el pronóstico
+        return super().create(validated_data)

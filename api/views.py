@@ -19,7 +19,8 @@ from .models import (
     MedicionesTransformadores,
     Transformadores,
     Interruptores,
-    AlertasInterruptores
+    AlertasInterruptores,
+    Pronosticos
 )
 from .permissions import IsAdmin, IsTecnicoOrAdmin
 from .serializers import (
@@ -32,7 +33,8 @@ from .serializers import (
     MedicionesTransformadoresSerializer,
     InterruptoresSerializer,
     MedicionesInterruptoresSerializer,
-    AlertasInterruptoresSerializer
+    AlertasInterruptoresSerializer,
+    PronosticosSerializer
 )
 
 User = get_user_model()
@@ -534,3 +536,87 @@ class AlertasInterruptoresListView(APIView):
             })
 
         return Response(alertas, status=status.HTTP_200_OK)
+
+
+####   PRONOSTICOS
+
+class PronosticosCreateView(APIView):
+    permission_classes = [IsAuthenticated, IsTecnicoOrAdmin]
+
+    def post(self, request, *args, **kwargs):
+        serializer = PronosticosSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(
+                    {
+                        "message": "Pronóstico registrado exitosamente.",
+                        "data": serializer.data,
+                    },
+                    status=status.HTTP_201_CREATED
+                )
+            except Exception as e:
+                return Response(
+                    {"message": "Ocurrió un error al guardar el pronóstico.", "error": str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PronosticosListView(APIView):
+    permission_classes = [IsAuthenticated, IsTecnicoOrAdmin]
+
+    def get(self, request, *args, **kwargs):
+        pronosticos = []
+        tipo_equipo = request.query_params.get('tipo_equipo')
+        id_transformador = request.query_params.get('idTransformador')
+        id_interruptor = request.query_params.get('idInterruptor')
+        fecha_desde = request.query_params.get('fecha_desde')
+        fecha_hasta = request.query_params.get('fecha_hasta')
+
+        filters = Q()
+
+        if tipo_equipo:
+            filters &= Q(tipo_equipo=tipo_equipo)
+
+        if id_transformador:
+            filters &= Q(transformador=id_transformador)
+
+        if id_interruptor:
+            filters &= Q(interruptor=id_interruptor)
+
+        if fecha_desde and fecha_hasta:
+            filters &= Q(fecha_creacion__range=[fecha_desde, fecha_hasta])
+        elif fecha_desde:
+            filters &= Q(fecha_creacion__gte=fecha_desde)
+        elif fecha_hasta:
+            filters &= Q(fecha_creacion__lte=fecha_hasta)
+
+        # Aplicar filtros
+        queryset = Pronosticos.objects.filter(filters).order_by('-fecha_creacion')
+        pronosticos_serializados = PronosticosSerializer(queryset, many=True).data
+
+        # Añadir información del transformador o interruptor
+        for pronostico in pronosticos_serializados:
+            equipo_data = None
+
+            if pronostico['tipo_equipo'] == 'transformador' and pronostico['transformador']:
+                try:
+                    transformador = Transformadores.objects.get(idtransformadores=pronostico['transformador'])
+                    equipo_data = TransformadoresSerializer(transformador).data
+                except Transformadores.DoesNotExist:
+                    equipo_data = None
+
+            elif pronostico['tipo_equipo'] == 'interruptor' and pronostico['interruptor']:
+                try:
+                    interruptor = Interruptores.objects.get(idinterruptores=pronostico['interruptor'])
+                    equipo_data = InterruptoresSerializer(interruptor).data
+                except Interruptores.DoesNotExist:
+                    equipo_data = None
+
+            pronosticos.append({
+                "pronostico": pronostico,
+                "equipo": equipo_data
+            })
+
+        return Response(pronosticos, status=status.HTTP_200_OK)
