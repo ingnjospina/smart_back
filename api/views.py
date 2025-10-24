@@ -455,8 +455,10 @@ class MedicionesInterruptoresCreateView(APIView):
                 interruptor = InterruptorPotencia(N_O, T_A, T_C, I_F, R_C)
                 _, _, I_M = interruptor.calcular_indices()
 
-                # Generar alerta y enviar email si es necesario
-                alerta = AlertaInterruptorEmail.generar_alerta_interruptor(I_M, id_interruptor_obj)
+                # Generar alerta y enviar email si es necesario al usuario logueado
+                usuario_email = request.user.correo if request.user.is_authenticated else None
+                usuario_nombre = request.user.nombre if request.user.is_authenticated else None
+                alerta = AlertaInterruptorEmail.generar_alerta_interruptor(I_M, id_interruptor_obj, usuario_email, usuario_nombre)
 
                 # Guardar la alerta en la base de datos
                 alerta_db = AlertasInterruptores.objects.create(

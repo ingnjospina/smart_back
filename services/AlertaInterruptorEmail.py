@@ -9,7 +9,7 @@ from datetime import datetime
 
 class AlertaInterruptorEmail:
     @staticmethod
-    def generar_alerta_interruptor(I_M, id_interruptor):
+    def generar_alerta_interruptor(I_M, id_interruptor, usuario_email=None, usuario_nombre=None):
         send_message = False
 
         # Diccionario de colores HTML según la alerta
@@ -74,7 +74,8 @@ class AlertaInterruptorEmail:
             smtp_port = os.getenv('SMTP_PORT')
             sender_email = os.getenv('SENDER_EMAIL')
             password = os.getenv('PASSWORD_EMAIL')
-            receiver_email = os.getenv('FROM_EMAIL')
+            # Usar el email del usuario logueado o el del .env como fallback
+            receiver_email = usuario_email if usuario_email else os.getenv('FROM_EMAIL')
 
             # Generar el cuerpo del email en HTML con color dinámico
             html_body = f"""
@@ -130,6 +131,9 @@ class AlertaInterruptorEmail:
                 <div class="container">
                     <div class="alert-box">
                         <h1>⚠️ Alerta Detectada</h1>
+                        {f'<p>Estimado(a) <strong>{usuario_nombre}</strong>,</p>' if usuario_nombre else ''}
+                        <p>Se ha detectado una alerta en el siguiente interruptor:</p>
+                        <hr style="margin: 15px 0;">
                         <p><span class="highlight">Interruptor:</span> {id_interruptor.nombre}</p>
                         <p><span class="highlight">Valor de Medición:</span> <span class="alert-color">{I_M:.2f}</span></p>
                         <p><span class="highlight">Fecha de Medición:</span> {fecha_medicion}</p>
