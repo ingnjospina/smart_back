@@ -109,17 +109,30 @@ class MedicionesTransformadoresSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate(self, data):
-        if data['relacion_transformacion'] < 0 or data['relacion_transformacion'] > 1:
-            raise serializers.ValidationError({"relacion_transformacion": "Debe estar entre 0 y 1."})
+        # ========== VALIDACIONES ANTERIORES (BACKUP) ==========
+        # if data['relacion_transformacion'] < 0 or data['relacion_transformacion'] > 1:
+        #     raise serializers.ValidationError({"relacion_transformacion": "Debe estar entre 0 y 1."})
+        #
+        # if data['resistencia_devanados'] < 0 or data['resistencia_devanados'] > 1:
+        #     raise serializers.ValidationError({"resistencia_devanados": "Debe estar entre 0 y 1."})
+        #
+        # if data['factor_potencia'] < 0 or data['factor_potencia'] > 1:
+        #     raise serializers.ValidationError({"factor_potencia": "Debe estar entre 0 y 1."})
+        # ========== FIN VALIDACIONES ANTERIORES ==========
 
-        if data['resistencia_devanados'] < 0 or data['resistencia_devanados'] > 1:
-            raise serializers.ValidationError({"resistencia_devanados": "Debe estar entre 0 y 1."})
+        # Validación corregida según lógica de cálculo (líneas 324-373)
+        # Las validaciones fueron ajustadas porque la lógica contempla valores mayores a 1
+        if data['relacion_transformacion'] < 0:
+            raise serializers.ValidationError({"relacion_transformacion": "Debe ser mayor o igual a 0."})
+
+        if data['resistencia_devanados'] < 0:
+            raise serializers.ValidationError({"resistencia_devanados": "Debe ser mayor o igual a 0."})
 
         if data['corriente_excitacion'] < 0 or data['corriente_excitacion'] > 7:
             raise serializers.ValidationError({"corriente_excitacion": "Debe estar entre 0 y 7."})
 
-        if data['factor_potencia'] < 0 or data['factor_potencia'] > 1:
-            raise serializers.ValidationError({"factor_potencia": "Debe estar entre 0 y 1."})
+        if data['factor_potencia'] < 0:
+            raise serializers.ValidationError({"factor_potencia": "Debe ser mayor o igual a 0."})
 
         if data['inhibidor_oxidacion'] < 0 or data['inhibidor_oxidacion'] > 1:
             raise serializers.ValidationError({"inhibidor_oxidacion": "Debe estar entre 0 y 1."})

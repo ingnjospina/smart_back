@@ -113,7 +113,7 @@ class MedicionesTransformadores(models.Model):
     hif_resistencia_devanados = models.DecimalField(max_digits=4, decimal_places=3, blank=True, null=True)
     corriente_excitacion = models.PositiveSmallIntegerField()
     hif_corriente_excitacion = models.PositiveSmallIntegerField(blank=True, null=True)
-    gases_disueltos = models.DecimalField(max_digits=6, decimal_places=4, blank=True, null=True)
+    gases_disueltos = models.DecimalField(max_digits=7, decimal_places=4, blank=True, null=True)
     hif_gases_disueltos = models.DecimalField(max_digits=6, decimal_places=4, blank=True, null=True)
     hi_funcional = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True)
 
