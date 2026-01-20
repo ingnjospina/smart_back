@@ -20,7 +20,8 @@ from .models import (
     Transformadores,
     Interruptores,
     AlertasInterruptores,
-    Pronosticos
+    Pronosticos,
+    PronosticosTransformadores
 )
 from .permissions import IsAdmin, IsTecnicoOrAdmin
 from .serializers import (
@@ -34,7 +35,8 @@ from .serializers import (
     InterruptoresSerializer,
     MedicionesInterruptoresSerializer,
     AlertasInterruptoresSerializer,
-    PronosticosSerializer
+    PronosticosSerializer,
+    PronosticosTransformadoresSerializer
 )
 
 User = get_user_model()
@@ -622,3 +624,137 @@ class PronosticosListView(APIView):
             })
 
         return Response(pronosticos, status=status.HTTP_200_OK)
+
+
+####   PRONOSTICOS TRANSFORMADORES
+
+class PronosticosTransformadoresCreateView(APIView):
+    """
+    Vista para crear pronósticos de transformadores.
+    Calcula HI, RM y fechas de mantenimiento.
+    """
+    permission_classes = [IsAuthenticated, IsTecnicoOrAdmin]
+
+    def post(self, request, *args, **kwargs):
+        serializer = PronosticosTransformadoresSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                pronostico = serializer.save()
+
+                return Response(
+                    {
+                        "message": "Pronóstico de transformador registrado exitosamente.",
+                        "data": PronosticosTransformadoresSerializer(pronostico).data,
+                        "resumen": {
+                            "hi_total": float(pronostico.hi_total) if pronostico.hi_total else None,
+                            "rm_actual": float(pronostico.rm_actual) if pronostico.rm_actual else None,
+                            "condicion": pronostico.condicion_hi,
+                            "color_alerta": pronostico.color_alerta,
+                            "fecha_optima_sugerida": pronostico.fecha_optima_sugerida.isoformat() if pronostico.fecha_optima_sugerida else None,
+                            "criterio": pronostico.criterio_fecha,
+                            "recomendacion": pronostico.recomendacion
+                        }
+                    },
+                    status=status.HTTP_201_CREATED
+                )
+            except Exception as e:
+                return Response(
+                    {"message": "Ocurrió un error al guardar el pronóstico.", "error": str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PronosticosTransformadoresListView(APIView):
+    """
+    Vista para listar pronósticos de transformadores.
+    Soporta filtros por transformador y fechas.
+    """
+    permission_classes = [IsAuthenticated, IsTecnicoOrAdmin]
+
+    def get(self, request, *args, **kwargs):
+        pronosticos = []
+        id_transformador = request.query_params.get('idTransformador')
+        fecha_desde = request.query_params.get('fecha_desde')
+        fecha_hasta = request.query_params.get('fecha_hasta')
+        condicion = request.query_params.get('condicion')
+
+        filters = Q()
+
+        if id_transformador:
+            filters &= Q(transformador=id_transformador)
+
+        if condicion:
+            filters &= Q(condicion_hi__icontains=condicion)
+
+        if fecha_desde and fecha_hasta:
+            filters &= Q(fecha_creacion__range=[fecha_desde, fecha_hasta])
+        elif fecha_desde:
+            filters &= Q(fecha_creacion__gte=fecha_desde)
+        elif fecha_hasta:
+            filters &= Q(fecha_creacion__lte=fecha_hasta)
+
+        # Aplicar filtros
+        queryset = PronosticosTransformadores.objects.filter(filters).order_by('-fecha_creacion')
+        pronosticos_serializados = PronosticosTransformadoresSerializer(queryset, many=True).data
+
+        # Añadir información del transformador
+        for pronostico in pronosticos_serializados:
+            transformador_data = None
+            try:
+                transformador = Transformadores.objects.get(idtransformadores=pronostico['transformador'])
+                transformador_data = TransformadoresSerializer(transformador).data
+            except Transformadores.DoesNotExist:
+                transformador_data = None
+
+            pronosticos.append({
+                "pronostico": pronostico,
+                "transformador": transformador_data
+            })
+
+        return Response(pronosticos, status=status.HTTP_200_OK)
+
+
+class PronosticosTransformadoresDetailView(APIView):
+    """
+    Vista para obtener detalle de un pronóstico de transformador.
+    """
+    permission_classes = [IsAuthenticated, IsTecnicoOrAdmin]
+
+    def get(self, request, pk, *args, **kwargs):
+        try:
+            pronostico = PronosticosTransformadores.objects.get(pk=pk)
+        except PronosticosTransformadores.DoesNotExist:
+            return Response(
+                {"message": "El pronóstico especificado no existe."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        pronostico_data = PronosticosTransformadoresSerializer(pronostico).data
+
+        # Añadir información del transformador
+        transformador_data = None
+        try:
+            transformador = Transformadores.objects.get(idtransformadores=pronostico.transformador_id)
+            transformador_data = TransformadoresSerializer(transformador).data
+        except Transformadores.DoesNotExist:
+            pass
+
+        return Response({
+            "pronostico": pronostico_data,
+            "transformador": transformador_data,
+            "resumen": {
+                "hi_funcional": float(pronostico.hi_funcional) if pronostico.hi_funcional else None,
+                "hi_dielectrico": float(pronostico.hi_dielectrico) if pronostico.hi_dielectrico else None,
+                "hi_total": float(pronostico.hi_total) if pronostico.hi_total else None,
+                "estres_termico": float(pronostico.estres_termico) if pronostico.estres_termico else None,
+                "rm_actual": float(pronostico.rm_actual) if pronostico.rm_actual else None,
+                "condicion": pronostico.condicion_hi,
+                "color_alerta": pronostico.color_alerta,
+                "vida_util": pronostico.vida_util_remanente,
+                "fecha_optima_sugerida": pronostico.fecha_optima_sugerida.isoformat() if pronostico.fecha_optima_sugerida else None,
+                "fecha_programada": pronostico.fecha_programada.isoformat() if pronostico.fecha_programada else None,
+                "criterio": pronostico.criterio_fecha,
+                "recomendacion": pronostico.recomendacion
+            }
+        }, status=status.HTTP_200_OK)

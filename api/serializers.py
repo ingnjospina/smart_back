@@ -22,7 +22,8 @@ from .models import (
     Interruptores,
     MedicionesInterruptores,
     AlertasInterruptores,
-    Pronosticos
+    Pronosticos,
+    PronosticosTransformadores
 )
 
 User = get_user_model()
@@ -768,6 +769,110 @@ class PronosticosSerializer(serializers.ModelSerializer):
 
         # Agregar campos calculados a los datos validados
         validated_data.update(campos_calculados)
+
+        # Crear el pronóstico
+        return super().create(validated_data)
+
+
+class PronosticosTransformadoresSerializer(serializers.ModelSerializer):
+    """
+    Serializer para pronósticos de transformadores.
+    Calcula HI, RM y fechas de mantenimiento usando el servicio PronosticoTransformador.
+    """
+    class Meta:
+        model = PronosticosTransformadores
+        fields = '__all__'
+        read_only_fields = [
+            'hif_relacion_transformacion', 'hif_resistencia_devanados',
+            'hif_corriente_excitacion', 'dgaf_porcentaje', 'hif_gases_disueltos',
+            'hif_factor_potencia', 'oqf_porcentaje', 'hif_calidad_aceite',
+            'hif_inhibidor_oxidacion', 'hif_grado_polimerizacion',
+            'hi_funcional', 'hi_dielectrico', 'hi_total',
+            'faa_p95', 'estres_termico', 'rm_actual', 'tendencia_hi',
+            'fecha_cruce_rm', 'fecha_programada', 'fecha_optima_sugerida',
+            'criterio_fecha', 'condicion_hi', 'vida_util_remanente',
+            'recomendacion', 'color_alerta', 'fecha_creacion'
+        ]
+
+    def validate(self, data):
+        # Validar que se proporcione un transformador
+        if not data.get('transformador'):
+            raise serializers.ValidationError({"transformador": "Debe proporcionar un transformador."})
+
+        # Validaciones de valores positivos
+        if data.get('relacion_transformacion', 0) < 0:
+            raise serializers.ValidationError({"relacion_transformacion": "Debe ser mayor o igual a 0."})
+        if data.get('resistencia_devanados', 0) < 0:
+            raise serializers.ValidationError({"resistencia_devanados": "Debe ser mayor o igual a 0."})
+        if data.get('factor_potencia', 0) < 0:
+            raise serializers.ValidationError({"factor_potencia": "Debe ser mayor o igual a 0."})
+
+        return data
+
+    def create(self, validated_data):
+        from services.PronosticoTransformador import PronosticoTransformador
+
+        # Preparar datos para el servicio de pronóstico
+        datos_entrada = {
+            'relacion_transformacion': float(validated_data.get('relacion_transformacion', 0)),
+            'resistencia_devanados': float(validated_data.get('resistencia_devanados', 0)),
+            'corriente_excitacion': int(validated_data.get('corriente_excitacion', 0)),
+            'hidrogeno': float(validated_data.get('hidrogeno', 0)),
+            'metano': float(validated_data.get('metano', 0)),
+            'etano': float(validated_data.get('etano', 0)),
+            'etileno': float(validated_data.get('etileno', 0)),
+            'acetileno': float(validated_data.get('acetileno', 0)),
+            'dioxido_carbono': float(validated_data.get('dioxido_carbono', 0)),
+            'monoxido_carbono': float(validated_data.get('monoxido_carbono', 0)),
+            'factor_potencia': float(validated_data.get('factor_potencia', 0)),
+            'rigidez_dielectrica': float(validated_data.get('rigidez_dielectrica', 0)),
+            'tension_interfacial': float(validated_data.get('tension_interfacial', 0)),
+            'numero_acidez': float(validated_data.get('numero_acidez', 0)),
+            'contenido_humedad': float(validated_data.get('contenido_humedad', 0)),
+            'color': float(validated_data.get('color', 0)),
+            'factor_potencia_liquido': float(validated_data.get('factor_potencia_liquido', 0)),
+            'inhibidor_oxidacion': float(validated_data.get('inhibidor_oxidacion', 0)),
+            'grado_polimerizacion': float(validated_data.get('grado_polimerizacion', 0)),
+        }
+
+        fecha_ultimo_mant = validated_data.get('fecha_ultimo_mantenimiento')
+
+        # Ejecutar cálculo de pronóstico
+        pronostico_calc = PronosticoTransformador(datos_entrada, fecha_ultimo_mant)
+        resultado = pronostico_calc.calcular_pronostico()
+
+        # Agregar campos calculados a los datos validados
+        validated_data['hif_relacion_transformacion'] = resultado.hif_relacion_transformacion
+        validated_data['hif_resistencia_devanados'] = resultado.hif_resistencia_devanados
+        validated_data['hif_corriente_excitacion'] = resultado.hif_corriente_excitacion
+        validated_data['dgaf_porcentaje'] = Decimal(str(resultado.dgaf_porcentaje))
+        validated_data['hif_gases_disueltos'] = resultado.hif_gases_disueltos
+
+        validated_data['hif_factor_potencia'] = resultado.hif_factor_potencia
+        validated_data['oqf_porcentaje'] = Decimal(str(resultado.oqf_porcentaje))
+        validated_data['hif_calidad_aceite'] = resultado.hif_calidad_aceite
+        validated_data['hif_inhibidor_oxidacion'] = resultado.hif_inhibidor_oxidacion
+        validated_data['hif_grado_polimerizacion'] = resultado.hif_grado_polimerizacion
+
+        validated_data['hi_funcional'] = Decimal(str(resultado.hi_funcional))
+        validated_data['hi_dielectrico'] = Decimal(str(resultado.hi_dielectrico))
+        validated_data['hi_total'] = Decimal(str(resultado.hi_total))
+
+        validated_data['faa_p95'] = Decimal(str(resultado.faa_p95))
+        validated_data['estres_termico'] = Decimal(str(resultado.estres_termico))
+
+        validated_data['rm_actual'] = Decimal(str(resultado.rm_actual))
+        validated_data['tendencia_hi'] = Decimal(str(resultado.tendencia_hi))
+
+        validated_data['fecha_cruce_rm'] = resultado.fecha_cruce_rm
+        validated_data['fecha_programada'] = resultado.fecha_programada
+        validated_data['fecha_optima_sugerida'] = resultado.fecha_optima_sugerida
+        validated_data['criterio_fecha'] = resultado.criterio_fecha
+
+        validated_data['condicion_hi'] = resultado.condicion_hi
+        validated_data['vida_util_remanente'] = resultado.vida_util_remanente
+        validated_data['recomendacion'] = resultado.recomendacion
+        validated_data['color_alerta'] = resultado.color_alerta
 
         # Crear el pronóstico
         return super().create(validated_data)

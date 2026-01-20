@@ -17,7 +17,10 @@ from .views import (
     MedicionesInterruptoresCreateView,
     AlertasInterruptoresListView,
     PronosticosCreateView,
-    PronosticosListView
+    PronosticosListView,
+    PronosticosTransformadoresCreateView,
+    PronosticosTransformadoresListView,
+    PronosticosTransformadoresDetailView
 )
 
 
@@ -57,7 +60,15 @@ urlpatterns = [
     path('interruptores/medicion/create/', MedicionesInterruptoresCreateView.as_view(),
          name='mediciones_interruptores_create'),
 
-    # Pronósticos
+    # Pronósticos (Interruptores)
     path('pronosticos/create/', PronosticosCreateView.as_view(), name='pronosticos-create'),
     path('pronosticos/', PronosticosListView.as_view(), name='pronosticos-list'),
+
+    # Pronósticos Transformadores
+    path('pronosticos/transformadores/create/', PronosticosTransformadoresCreateView.as_view(),
+         name='pronosticos-transformadores-create'),
+    path('pronosticos/transformadores/', PronosticosTransformadoresListView.as_view(),
+         name='pronosticos-transformadores-list'),
+    path('pronosticos/transformadores/<int:pk>/', PronosticosTransformadoresDetailView.as_view(),
+         name='pronosticos-transformadores-detail'),
 ]
