@@ -245,6 +245,217 @@ class Pronosticos(models.Model):
         return f"Pronóstico {self.idpronostico}"
 
 
+class PronosticosTransformadores(models.Model):
+    """
+    Modelo para pronósticos de transformadores.
+    Almacena los datos de entrada, cálculos de HI/RM y fechas de mantenimiento.
+    """
+    idpronostico_transformador = models.AutoField(
+        db_column='idpronostico_transformador',
+        primary_key=True
+    )
+
+    # Relación con transformador
+    transformador = models.ForeignKey(
+        'Transformadores',
+        on_delete=models.CASCADE,
+        db_column='Transformadores_idTransformadores'
+    )
+
+    # Fecha del último mantenimiento (input del usuario)
+    fecha_ultimo_mantenimiento = models.DateField()
+
+    # ===== DATOS DE ENTRADA - ÍNDICE FUNCIONAL =====
+    relacion_transformacion = models.DecimalField(
+        max_digits=6, decimal_places=3,
+        help_text='% error TTR'
+    )
+    resistencia_devanados = models.DecimalField(
+        max_digits=6, decimal_places=3,
+        help_text='% error'
+    )
+    corriente_excitacion = models.PositiveSmallIntegerField(
+        help_text='Patrón: 2=L-H-L, 5=H-L-H'
+    )
+
+    # ===== DATOS DE ENTRADA - GASES DISUELTOS (DGA) =====
+    hidrogeno = models.DecimalField(max_digits=10, decimal_places=2)
+    metano = models.DecimalField(max_digits=10, decimal_places=2)
+    etano = models.DecimalField(max_digits=10, decimal_places=2)
+    etileno = models.DecimalField(max_digits=10, decimal_places=2)
+    acetileno = models.DecimalField(max_digits=10, decimal_places=2)
+    dioxido_carbono = models.DecimalField(max_digits=10, decimal_places=2)
+    monoxido_carbono = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # ===== DATOS DE ENTRADA - ÍNDICE DIELÉCTRICO =====
+    factor_potencia = models.DecimalField(
+        max_digits=6, decimal_places=3,
+        help_text='%'
+    )
+    rigidez_dielectrica = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        help_text='KV'
+    )
+    tension_interfacial = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        help_text='mN/m'
+    )
+    numero_acidez = models.DecimalField(
+        max_digits=6, decimal_places=4,
+        help_text='mg KOH/g'
+    )
+    contenido_humedad = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        help_text='mg/kg o ppm'
+    )
+    color = models.DecimalField(max_digits=4, decimal_places=2)
+    factor_potencia_liquido = models.DecimalField(
+        max_digits=6, decimal_places=4,
+        help_text='Factor de potencia líquido 25%'
+    )
+    inhibidor_oxidacion = models.DecimalField(
+        max_digits=6, decimal_places=4,
+        help_text='%'
+    )
+    grado_polimerizacion = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        help_text='DP - Grado de Polimerización (Tabla 16)'
+    )
+
+    # ===== VALORES HIF CALCULADOS - FUNCIONAL =====
+    hif_relacion_transformacion = models.PositiveSmallIntegerField(
+        blank=True, null=True,
+        help_text='HIF 0-4'
+    )
+    hif_resistencia_devanados = models.PositiveSmallIntegerField(
+        blank=True, null=True,
+        help_text='HIF 0-4'
+    )
+    hif_corriente_excitacion = models.PositiveSmallIntegerField(
+        blank=True, null=True,
+        help_text='HIF 0 o 4'
+    )
+    dgaf_porcentaje = models.DecimalField(
+        max_digits=6, decimal_places=2,
+        blank=True, null=True,
+        help_text='%DGAF calculado'
+    )
+    hif_gases_disueltos = models.PositiveSmallIntegerField(
+        blank=True, null=True,
+        help_text='HIF 0-4 basado en %DGAF'
+    )
+
+    # ===== VALORES HIF CALCULADOS - DIELÉCTRICO =====
+    hif_factor_potencia = models.PositiveSmallIntegerField(
+        blank=True, null=True,
+        help_text='HIF 0-4'
+    )
+    oqf_porcentaje = models.DecimalField(
+        max_digits=6, decimal_places=2,
+        blank=True, null=True,
+        help_text='%OQF calculado'
+    )
+    hif_calidad_aceite = models.PositiveSmallIntegerField(
+        blank=True, null=True,
+        help_text='HIF 0-4 basado en %OQF'
+    )
+    hif_inhibidor_oxidacion = models.PositiveSmallIntegerField(
+        blank=True, null=True,
+        help_text='HIF 0-4'
+    )
+    hif_grado_polimerizacion = models.PositiveSmallIntegerField(
+        blank=True, null=True,
+        help_text='HIF 0-4 basado en DP'
+    )
+
+    # ===== ÍNDICES DE SALUD CALCULADOS =====
+    hi_funcional = models.DecimalField(
+        max_digits=6, decimal_places=2,
+        blank=True, null=True,
+        help_text='HI Funcional (0-100)'
+    )
+    hi_dielectrico = models.DecimalField(
+        max_digits=6, decimal_places=2,
+        blank=True, null=True,
+        help_text='HI Dieléctrico (0-100)'
+    )
+    hi_total = models.DecimalField(
+        max_digits=6, decimal_places=2,
+        blank=True, null=True,
+        help_text='HI Total = 0.5*HI_func + 0.5*HI_diel'
+    )
+
+    # ===== DATOS TÉRMICOS Y ESTRÉS =====
+    faa_p95 = models.DecimalField(
+        max_digits=10, decimal_places=4,
+        blank=True, null=True,
+        help_text='FAA Percentil 95'
+    )
+    estres_termico = models.DecimalField(
+        max_digits=6, decimal_places=4,
+        blank=True, null=True,
+        help_text='TS normalizado 0-1'
+    )
+
+    # ===== ÍNDICE DE RIESGO DE MANTENIMIENTO =====
+    rm_actual = models.DecimalField(
+        max_digits=6, decimal_places=4,
+        blank=True, null=True,
+        help_text='RM = 0.5*HI + 0.35*TS + 0.15*tendencia'
+    )
+    tendencia_hi = models.DecimalField(
+        max_digits=8, decimal_places=6,
+        blank=True, null=True,
+        help_text='Pendiente de HI (puntos/día)'
+    )
+
+    # ===== FECHAS DE MANTENIMIENTO =====
+    fecha_cruce_rm = models.DateTimeField(
+        blank=True, null=True,
+        help_text='Fecha estimada cruce umbral RM (0.70)'
+    )
+    fecha_programada = models.DateField(
+        blank=True, null=True,
+        help_text='Fecha por intervalo (última_mant + 3 años)'
+    )
+    fecha_optima_sugerida = models.DateField(
+        blank=True, null=True,
+        help_text='min(fecha_cruce - 21 días, fecha_programada)'
+    )
+    criterio_fecha = models.CharField(
+        max_length=20,
+        blank=True, null=True,
+        help_text='condicion o tiempo'
+    )
+
+    # ===== CLASIFICACIÓN Y ALERTA =====
+    condicion_hi = models.CharField(
+        max_length=20,
+        blank=True, null=True,
+        help_text='Muy Bueno/Bueno/Regular/Pobre/Muy Pobre'
+    )
+    vida_util_remanente = models.CharField(
+        max_length=50,
+        blank=True, null=True
+    )
+    recomendacion = models.TextField(blank=True, null=True)
+    color_alerta = models.CharField(
+        max_length=20,
+        blank=True, null=True,
+        help_text='azul/verde/amarillo/naranja/rojo'
+    )
+
+    # ===== METADATA =====
+    tiene_archivos = models.BooleanField(default=False)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'pronosticos_transformadores'
+
+    def __str__(self):
+        return f"Pronóstico Transformador {self.idpronostico_transformador} - {self.transformador.nombre}"
+
+
 class Usuario(AbstractBaseUser, PermissionsMixin):
     def get_current_time():
         return timezone.now()
