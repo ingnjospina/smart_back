@@ -20,7 +20,8 @@ from .views import (
     PronosticosListView,
     PronosticosTransformadoresCreateView,
     PronosticosTransformadoresListView,
-    PronosticosTransformadoresDetailView
+    PronosticosTransformadoresDetailView,
+    PronosticosTransformadoresEmailView
 )
 
 
@@ -71,4 +72,6 @@ urlpatterns = [
          name='pronosticos-transformadores-list'),
     path('pronosticos/transformadores/<int:pk>/', PronosticosTransformadoresDetailView.as_view(),
          name='pronosticos-transformadores-detail'),
+    path('pronosticos/transformadores/<int:pk>/email/', PronosticosTransformadoresEmailView.as_view(),
+         name='pronosticos-transformadores-email'),
 ]

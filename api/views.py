@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from services.AlertaInterruptorEmail import AlertaInterruptorEmail
+from services.AlertaTransformadorEmail import AlertaTransformadorEmail
 from services.InterruptorPotencia import InterruptorPotencia
 from .models import (
     Alertas,
@@ -758,3 +759,59 @@ class PronosticosTransformadoresDetailView(APIView):
                 "recomendacion": pronostico.recomendacion
             }
         }, status=status.HTTP_200_OK)
+
+
+class PronosticosTransformadoresEmailView(APIView):
+    """
+    Vista para enviar por correo la información de un pronóstico de transformador.
+    """
+    permission_classes = [IsAuthenticated, IsTecnicoOrAdmin]
+
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            pronostico = PronosticosTransformadores.objects.get(pk=pk)
+        except PronosticosTransformadores.DoesNotExist:
+            return Response(
+                {"message": "El pronóstico especificado no existe."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Obtener información del usuario logueado
+        usuario_email = request.user.correo if request.user.is_authenticated else None
+        usuario_nombre = request.user.nombre if request.user.is_authenticated else None
+
+        if not usuario_email:
+            return Response(
+                {"message": "No se pudo obtener el correo del usuario."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Obtener datos del pronóstico
+        pronostico_data = PronosticosTransformadoresSerializer(pronostico).data
+
+        # Obtener nombre del transformador
+        transformador_nombre = "N/A"
+        try:
+            transformador = Transformadores.objects.get(idtransformadores=pronostico.transformador_id)
+            transformador_nombre = transformador.nombre
+        except Transformadores.DoesNotExist:
+            pass
+
+        # Enviar email
+        resultado = AlertaTransformadorEmail.enviar_pronostico_transformador(
+            pronostico_data,
+            transformador_nombre,
+            usuario_email,
+            usuario_nombre
+        )
+
+        if resultado["success"]:
+            return Response(
+                {"message": resultado["message"]},
+                status=status.HTTP_200_OK
+            )
+        else:
+            return Response(
+                {"message": resultado["message"]},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
