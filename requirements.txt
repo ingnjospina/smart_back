@@ -18,3 +18,4 @@ scipy==1.16.2
 sqlparse==0.5.1
 threadpoolctl==3.6.0
 tzdata==2024.2
+python-dateutil==2.9.0
