@@ -644,8 +644,6 @@ class TransformadoresSerializer(serializers.ModelSerializer):
 
 
 class InterruptoresSerializer(serializers.ModelSerializer):
-    idInterruptores = serializers.IntegerField(required=False)
-
     class Meta:
         model = Interruptores
         exclude = ['deleted']
@@ -661,117 +659,7 @@ class PronosticosSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pronosticos
         fields = '__all__'
-        read_only_fields = ['probabilidad_mantenimiento', 'fecha_programada', 'fecha_optima_sugerida']
-
-    def validate(self, data):
-        # Validar que se proporcione transformador o interruptor según el tipo_equipo
-        if data['tipo_equipo'] == 'transformador' and not data.get('transformador'):
-            raise serializers.ValidationError({"transformador": "Debe proporcionar un transformador."})
-        if data['tipo_equipo'] == 'interruptor' and not data.get('interruptor'):
-            raise serializers.ValidationError({"interruptor": "Debe proporcionar un interruptor."})
-
-        # Validaciones de valores positivos
-        if data['tiempo_apertura'] <= 0:
-            raise serializers.ValidationError({"tiempo_apertura": "Debe ser mayor que 0."})
-        if data['tiempo_cierre'] <= 0:
-            raise serializers.ValidationError({"tiempo_cierre": "Debe ser mayor que 0."})
-        if data['numero_operaciones'] <= 0:
-            raise serializers.ValidationError({"numero_operaciones": "Debe ser mayor que 0."})
-        if data['corriente_falla'] <= 0:
-            raise serializers.ValidationError({"corriente_falla": "Debe ser mayor que 0."})
-        if data['resistencia_contactos'] <= 0:
-            raise serializers.ValidationError({"resistencia_contactos": "Debe ser mayor que 0."})
-
-        return data
-
-    def calcular_campos_pronostico(self, validated_data):
-        """
-        Calcula los campos de pronóstico usando el modelo de machine learning.
-        """
-        # Cargar el modelo previamente entrenado
-        modelo_path = os.path.join(settings.BASE_DIR, "modelo_mantenimiento-1.pkl")
-        print(modelo_path)
-
-        if not os.path.exists(modelo_path):
-            raise serializers.ValidationError({
-                "error": "El archivo del modelo de machine learning no existe en la ruta especificada."
-            })
-
-        try:
-            modelo = joblib.load(modelo_path)
-        except Exception as e:
-            raise serializers.ValidationError({
-                "error": f"Error al cargar el modelo de machine learning: {str(e)}"
-            })
-
-        try:
-            # Preparar entrada para el modelo
-            entrada = np.array([
-                float(validated_data['tiempo_apertura']),
-                float(validated_data['tiempo_cierre']),
-                float(validated_data['numero_operaciones']),
-                float(validated_data['corriente_falla']),
-                float(validated_data['resistencia_contactos'])
-            ]).reshape(1, -1)
-
-        except (KeyError, ValueError, TypeError) as e:
-            raise serializers.ValidationError({
-                "error": f"Error al preparar los datos de entrada para el modelo: {str(e)}"
-            })
-
-        try:
-            # Obtener probabilidad de mantenimiento
-            probabilidad = modelo.predict_proba(entrada)[0][1]  # probabilidad de clase 1 (mantenimiento)
-
-            # Validar que la probabilidad esté en el rango esperado
-            if not (0 <= probabilidad <= 1):
-                raise ValueError(f"Probabilidad fuera de rango: {probabilidad}")
-
-        except (IndexError, AttributeError) as e:
-            raise serializers.ValidationError({
-                "error": f"El modelo no pudo generar una predicción válida: {str(e)}"
-            })
-        except Exception as e:
-            raise serializers.ValidationError({
-                "error": f"Error al ejecutar la predicción del modelo: {str(e)}"
-            })
-
-        try:
-            # Fecha programada (cada 3 años desde último mantenimiento)
-            fecha_mantenimiento = validated_data['fecha_mantenimiento']
-            fecha_programada = fecha_mantenimiento + timedelta(days=3*365)
-
-            # Calcular fecha óptima proporcional a la severidad
-            hoy = timezone.now().date()
-            dias_totales = (fecha_programada - hoy).days
-            dias_ajustados = int(dias_totales * (1 - probabilidad))
-            fecha_optima = hoy + timedelta(days=dias_ajustados)
-
-        except (KeyError, TypeError, AttributeError) as e:
-            raise serializers.ValidationError({
-                "error": f"Error al calcular las fechas de mantenimiento: {str(e)}"
-            })
-
-        try:
-            return {
-                'probabilidad_mantenimiento': Decimal(round(probabilidad * 100, 2)),
-                'fecha_programada': fecha_programada,
-                'fecha_optima_sugerida': fecha_optima
-            }
-        except Exception as e:
-            raise serializers.ValidationError({
-                "error": f"Error al preparar los campos calculados: {str(e)}"
-            })
-
-    def create(self, validated_data):
-        # Calcular campos de pronóstico
-        campos_calculados = self.calcular_campos_pronostico(validated_data)
-
-        # Agregar campos calculados a los datos validados
-        validated_data.update(campos_calculados)
-
-        # Crear el pronóstico
-        return super().create(validated_data)
+        read_only_fields = ['I_DM', 'I_EE', 'I_M', 'I_M_prev', 'delta_IM', 'Pmant', 'fecha_creacion']
 
 
 class PronosticosTransformadoresSerializer(serializers.ModelSerializer):
@@ -793,47 +681,114 @@ class PronosticosTransformadoresSerializer(serializers.ModelSerializer):
             'criterio_fecha', 'condicion_hi', 'vida_util_remanente',
             'recomendacion', 'color_alerta', 'fecha_creacion'
         ]
+        extra_kwargs = {
+            'relacion_transformacion': {'required': False},
+            'resistencia_devanados': {'required': False},
+            'corriente_excitacion': {'required': False},
+            'hidrogeno': {'required': False},
+            'metano': {'required': False},
+            'etano': {'required': False},
+            'etileno': {'required': False},
+            'acetileno': {'required': False},
+            'dioxido_carbono': {'required': False},
+            'monoxido_carbono': {'required': False},
+            'factor_potencia': {'required': False},
+            'rigidez_dielectrica': {'required': False},
+            'tension_interfacial': {'required': False},
+            'numero_acidez': {'required': False},
+            'contenido_humedad': {'required': False},
+            'color': {'required': False},
+            'factor_potencia_liquido': {'required': False},
+            'inhibidor_oxidacion': {'required': False},
+            'grado_polimerizacion': {'required': False},
+        }
 
     def validate(self, data):
-        # Validar que se proporcione un transformador
         if not data.get('transformador'):
             raise serializers.ValidationError({"transformador": "Debe proporcionar un transformador."})
-
-        # Validaciones de valores positivos
-        if data.get('relacion_transformacion', 0) < 0:
-            raise serializers.ValidationError({"relacion_transformacion": "Debe ser mayor o igual a 0."})
-        if data.get('resistencia_devanados', 0) < 0:
-            raise serializers.ValidationError({"resistencia_devanados": "Debe ser mayor o igual a 0."})
-        if data.get('factor_potencia', 0) < 0:
-            raise serializers.ValidationError({"factor_potencia": "Debe ser mayor o igual a 0."})
-
+        if not data.get('fecha_ultimo_mantenimiento'):
+            raise serializers.ValidationError({"fecha_ultimo_mantenimiento": "Debe proporcionar la fecha del último mantenimiento."})
         return data
 
     def create(self, validated_data):
         from services.PronosticoTransformador import PronosticoTransformador
 
-        # Preparar datos para el servicio de pronóstico
+        transformador = validated_data.get('transformador')
+
+        # Buscar la última medición del transformador
+        ultima_medicion = (
+            MedicionesTransformadores.objects
+            .filter(transformadores=transformador)
+            .order_by('-fecha_hora')
+            .first()
+        )
+        if not ultima_medicion:
+            raise serializers.ValidationError(
+                {"transformador": "El transformador no tiene mediciones registradas."}
+            )
+
+        # Buscar gases disueltos y aceite físico-químico de esa medición
+        try:
+            gases = Analisisgasesdisueltos.objects.get(
+                mediciones_transformadores_idmediciones_transformadores=ultima_medicion
+            )
+        except Analisisgasesdisueltos.DoesNotExist:
+            raise serializers.ValidationError(
+                {"transformador": "La última medición no tiene análisis de gases disueltos."}
+            )
+
+        try:
+            aceite = Analisisaceitefisicoquimico.objects.get(
+                mediciones_transformadores_idmediciones_transformadores=ultima_medicion
+            )
+        except Analisisaceitefisicoquimico.DoesNotExist:
+            raise serializers.ValidationError(
+                {"transformador": "La última medición no tiene análisis de aceite físico-químico."}
+            )
+
+        # Construir datos de entrada desde las 3 tablas
         datos_entrada = {
-            'relacion_transformacion': float(validated_data.get('relacion_transformacion', 0)),
-            'resistencia_devanados': float(validated_data.get('resistencia_devanados', 0)),
-            'corriente_excitacion': int(validated_data.get('corriente_excitacion', 0)),
-            'hidrogeno': float(validated_data.get('hidrogeno', 0)),
-            'metano': float(validated_data.get('metano', 0)),
-            'etano': float(validated_data.get('etano', 0)),
-            'etileno': float(validated_data.get('etileno', 0)),
-            'acetileno': float(validated_data.get('acetileno', 0)),
-            'dioxido_carbono': float(validated_data.get('dioxido_carbono', 0)),
-            'monoxido_carbono': float(validated_data.get('monoxido_carbono', 0)),
-            'factor_potencia': float(validated_data.get('factor_potencia', 0)),
-            'rigidez_dielectrica': float(validated_data.get('rigidez_dielectrica', 0)),
-            'tension_interfacial': float(validated_data.get('tension_interfacial', 0)),
-            'numero_acidez': float(validated_data.get('numero_acidez', 0)),
-            'contenido_humedad': float(validated_data.get('contenido_humedad', 0)),
-            'color': float(validated_data.get('color', 0)),
-            'factor_potencia_liquido': float(validated_data.get('factor_potencia_liquido', 0)),
-            'inhibidor_oxidacion': float(validated_data.get('inhibidor_oxidacion', 0)),
-            'grado_polimerizacion': float(validated_data.get('grado_polimerizacion', 0)),
+            'relacion_transformacion': float(ultima_medicion.relacion_transformacion),
+            'resistencia_devanados': float(ultima_medicion.resistencia_devanados),
+            'corriente_excitacion': int(ultima_medicion.corriente_excitacion),
+            'hidrogeno': float(gases.hidrogeno),
+            'metano': float(gases.metano),
+            'etano': float(gases.etano),
+            'etileno': float(gases.etileno),
+            'acetileno': float(gases.acetileno),
+            'dioxido_carbono': float(gases.dioxido_carbono),
+            'monoxido_carbono': float(gases.monoxido_carbono),
+            'factor_potencia': float(ultima_medicion.factor_potencia),
+            'rigidez_dielectrica': float(aceite.rigidez_dieletrica),
+            'tension_interfacial': float(aceite.tension_interfacial),
+            'numero_acidez': float(aceite.numero_acidez),
+            'contenido_humedad': float(aceite.contenido_humedad),
+            'color': float(aceite.color),
+            'factor_potencia_liquido': float(aceite.factor_potencia_liquido),
+            'inhibidor_oxidacion': float(ultima_medicion.inhibidor_oxidacion),
+            'grado_polimerizacion': float(ultima_medicion.compuestos_furanicos),
         }
+
+        # Persistir los valores de entrada en el pronóstico
+        validated_data['relacion_transformacion'] = Decimal(str(datos_entrada['relacion_transformacion']))
+        validated_data['resistencia_devanados'] = Decimal(str(datos_entrada['resistencia_devanados']))
+        validated_data['corriente_excitacion'] = datos_entrada['corriente_excitacion']
+        validated_data['hidrogeno'] = Decimal(str(datos_entrada['hidrogeno']))
+        validated_data['metano'] = Decimal(str(datos_entrada['metano']))
+        validated_data['etano'] = Decimal(str(datos_entrada['etano']))
+        validated_data['etileno'] = Decimal(str(datos_entrada['etileno']))
+        validated_data['acetileno'] = Decimal(str(datos_entrada['acetileno']))
+        validated_data['dioxido_carbono'] = Decimal(str(datos_entrada['dioxido_carbono']))
+        validated_data['monoxido_carbono'] = Decimal(str(datos_entrada['monoxido_carbono']))
+        validated_data['factor_potencia'] = Decimal(str(datos_entrada['factor_potencia']))
+        validated_data['rigidez_dielectrica'] = Decimal(str(datos_entrada['rigidez_dielectrica']))
+        validated_data['tension_interfacial'] = Decimal(str(datos_entrada['tension_interfacial']))
+        validated_data['numero_acidez'] = Decimal(str(datos_entrada['numero_acidez']))
+        validated_data['contenido_humedad'] = Decimal(str(datos_entrada['contenido_humedad']))
+        validated_data['color'] = Decimal(str(datos_entrada['color']))
+        validated_data['factor_potencia_liquido'] = Decimal(str(datos_entrada['factor_potencia_liquido']))
+        validated_data['inhibidor_oxidacion'] = Decimal(str(datos_entrada['inhibidor_oxidacion']))
+        validated_data['grado_polimerizacion'] = Decimal(str(datos_entrada['grado_polimerizacion']))
 
         fecha_ultimo_mant = validated_data.get('fecha_ultimo_mantenimiento')
 

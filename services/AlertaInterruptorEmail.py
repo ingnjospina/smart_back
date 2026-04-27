@@ -70,114 +70,76 @@ class AlertaInterruptorEmail:
 
         # Enviar email si es una alerta (I_M <= 70)
         if send_message:
-            smtp_server = os.getenv('SMTP_SERVER')
-            smtp_port = os.getenv('SMTP_PORT')
-            sender_email = os.getenv('SENDER_EMAIL')
-            password = os.getenv('PASSWORD_EMAIL')
-            # Usar el email del usuario logueado o el del .env como fallback
-            receiver_email = usuario_email if usuario_email else os.getenv('FROM_EMAIL')
+            try:
+                smtp_server = os.getenv('SMTP_SERVER')
+                smtp_port = os.getenv('SMTP_PORT')
+                sender_email = os.getenv('SENDER_EMAIL')
+                password = os.getenv('PASSWORD_EMAIL')
+                receiver_email = usuario_email if usuario_email else os.getenv('FROM_EMAIL')
 
-            # Generar el cuerpo del email en HTML con color dinámico
-            html_body = f"""
-            <html>
-            <head>
-                <style>
-                    body {{
-                        background-color: #f0f0f5;
-                        font-family: 'Arial', sans-serif;
-                        padding: 0;
-                        margin: 0;
-                    }}
-                    .container {{
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        padding: 20px;
-                        background-color: #f0f0f5;
-                    }}
-                    .alert-box {{
-                        background-color: white;
-                        border-radius: 12px;
-                        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-                        padding: 30px;
-                        max-width: 600px;
-                        width: 100%;
-                        margin: auto;
-                        border-top: 6px solid {color_texto};
-                    }}
-                    h1 {{
-                        color: #D32F2F;
-                        font-size: 28px;
-                        text-align: center;
-                        margin-bottom: 20px;
-                    }}
-                    p {{
-                        font-size: 16px;
-                        color: #333;
-                        line-height: 1.6;
-                        margin: 8px 0;
-                    }}
-                    .highlight {{
-                        font-weight: bold;
-                        color: #000;
-                    }}
-                    .alert-color {{
-                        color: {color_texto}; /* Color dinámico según la alerta */
-                        font-weight: bold;
-                    }}
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="alert-box">
-                        <h1>⚠️ Alerta Detectada</h1>
-                        {f'<p>Estimado(a) <strong>{usuario_nombre}</strong>,</p>' if usuario_nombre else ''}
-                        <p>Se ha detectado una alerta en el siguiente interruptor:</p>
-                        <hr style="margin: 15px 0;">
-                        <p><span class="highlight">Interruptor:</span> {id_interruptor.nombre}</p>
-                        <p><span class="highlight">Valor de Medición:</span> <span class="alert-color">{I_M:.2f}</span></p>
-                        <p><span class="highlight">Fecha de Medición:</span> {fecha_medicion}</p>
-                        <p><span class="highlight">Condición:</span> <span class="alert-color">{alerta['mensaje_condicion']}</span></p>
-                        <p><span class="highlight">Recomendación:</span> {alerta['recomendacion']}</p>
-                        <p><span class="highlight">Tipo de Alerta:</span> <span class="alert-color">{alerta['color_alerta'].capitalize()}</span></p>
+                html_body = f"""
+                <html>
+                <head>
+                    <style>
+                        body {{ background-color: #f0f0f5; font-family: 'Arial', sans-serif; padding: 0; margin: 0; }}
+                        .container {{ display: flex; justify-content: center; align-items: center; padding: 20px; background-color: #f0f0f5; }}
+                        .alert-box {{ background-color: white; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1); padding: 30px; max-width: 600px; width: 100%; margin: auto; border-top: 6px solid {color_texto}; }}
+                        h1 {{ color: #D32F2F; font-size: 28px; text-align: center; margin-bottom: 20px; }}
+                        p {{ font-size: 16px; color: #333; line-height: 1.6; margin: 8px 0; }}
+                        .highlight {{ font-weight: bold; color: #000; }}
+                        .alert-color {{ color: {color_texto}; font-weight: bold; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="alert-box">
+                            <h1>⚠️ Alerta Detectada</h1>
+                            {f'<p>Estimado(a) <strong>{usuario_nombre}</strong>,</p>' if usuario_nombre else ''}
+                            <p>Se ha detectado una alerta en el siguiente interruptor:</p>
+                            <hr style="margin: 15px 0;">
+                            <p><span class="highlight">Interruptor:</span> {id_interruptor.nombre}</p>
+                            <p><span class="highlight">Valor de Medición:</span> <span class="alert-color">{I_M:.2f}</span></p>
+                            <p><span class="highlight">Fecha de Medición:</span> {fecha_medicion}</p>
+                            <p><span class="highlight">Condición:</span> <span class="alert-color">{alerta['mensaje_condicion']}</span></p>
+                            <p><span class="highlight">Recomendación:</span> {alerta['recomendacion']}</p>
+                            <p><span class="highlight">Tipo de Alerta:</span> <span class="alert-color">{alerta['color_alerta'].capitalize()}</span></p>
+                        </div>
                     </div>
-                </div>
-            </body>
-            </html>
-            """
+                </body>
+                </html>
+                """
 
-            if os.getenv('ENABLE_MAILHOG', 'False') == 'True':
-                print("Enviando email con MailHog...")
+                if os.getenv('ENABLE_MAILHOG', 'False') == 'True':
+                    send_mail(
+                        f"🚨 Alerta en Interruptor {id_interruptor.nombre}",
+                        "",
+                        settings.DEFAULT_FROM_EMAIL,
+                        ["test@example.com"],
+                        fail_silently=True,
+                        html_message=html_body,
+                    )
+                else:
+                    message = MIMEMultipart()
+                    message["From"] = sender_email
+                    message["To"] = receiver_email
+                    message["Subject"] = f"🚨 Alerta en Interruptor {id_interruptor.nombre}"
+                    message.attach(MIMEText(html_body, "html"))
 
-                send_mail(
-                    f"🚨 Alerta en Interruptor {id_interruptor.nombre}",
-                    "",  # Cuerpo de texto vacío (se enviará en HTML)
-                    settings.DEFAULT_FROM_EMAIL,
-                    ["test@example.com"],  # Destinatarios de prueba
-                    fail_silently=False,
-                    html_message=html_body,  # Envío en formato HTML
-                )
+                    server = None
+                    try:
+                        server = smtplib.SMTP(smtp_server, int(smtp_port))
+                        server.starttls()
+                        server.login(sender_email, password)
+                        server.sendmail(sender_email, receiver_email, message.as_string())
+                        print("✅ Correo de alerta enviado con éxito")
+                    finally:
+                        if server:
+                            try:
+                                server.quit()
+                            except Exception:
+                                pass
 
-            else:
-                print("Enviando email con SMTP real...")
-
-                message = MIMEMultipart()
-                message["From"] = sender_email
-                message["To"] = receiver_email
-                message["Subject"] = f"🚨 Alerta en Interruptor {id_interruptor.nombre}"
-                message.attach(MIMEText(html_body, "html"))
-
-                server = None
-                try:
-                    server = smtplib.SMTP(smtp_server, smtp_port)
-                    server.starttls()
-                    server.login(sender_email, password)
-                    server.sendmail(sender_email, receiver_email, message.as_string())
-                    print("✅ Correo de alerta enviado con éxito")
-                except Exception as e:
-                    print(f"❌ Error al enviar el correo: {e}")
-                finally:
-                    if server:
-                        server.quit()
+            except Exception as e:
+                print(f"❌ Error al enviar el correo: {e}")
 
         return alerta

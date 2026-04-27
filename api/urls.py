@@ -15,6 +15,7 @@ from .views import (
     InterruptoresDetailView,
     TransformadoresDetailView,
     MedicionesInterruptoresCreateView,
+    MedicionesInterruptoresByInterruptorView,
     AlertasInterruptoresListView,
     PronosticosCreateView,
     PronosticosListView,
@@ -60,6 +61,8 @@ urlpatterns = [
     # Mediciones Interruptores
     path('interruptores/medicion/create/', MedicionesInterruptoresCreateView.as_view(),
          name='mediciones_interruptores_create'),
+    path('interruptores/mediciones/<int:pk>/', MedicionesInterruptoresByInterruptorView.as_view(),
+         name='mediciones_interruptores_by_interruptor'),
 
     # Pronósticos (Interruptores)
     path('pronosticos/create/', PronosticosCreateView.as_view(), name='pronosticos-create'),

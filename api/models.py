@@ -31,6 +31,7 @@ class AlertasInterruptores(models.Model):
     condicion = models.TextField()
     recomendacion = models.TextField(null=True, blank=True)
     fecha_medicion = models.DateTimeField(auto_now_add=True)
+    fecha_mantenimiento = models.DateField(null=True, blank=True)
 
     class Meta:
         db_table = 'alertas_interruptores'
@@ -159,7 +160,11 @@ class MedicionesInterruptores(models.Model):
     resistencia_contactos_S = models.DecimalField(max_digits=10, decimal_places=6)
     resistencia_contactos_T = models.DecimalField(max_digits=10, decimal_places=6)
 
-    Interruptores_idInterruptores = models.IntegerField()  # Relación con la tabla `interruptores`
+    Interruptores_idInterruptores = models.IntegerField()
+
+    I_DM = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    I_EE = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    I_M = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
 
     class Meta:
         db_table = "mediciones_interruptores"
@@ -208,39 +213,35 @@ class UsuarioManager(BaseUserManager):
 
 
 class Pronosticos(models.Model):
-    TIPO_EQUIPO_CHOICES = [
-        ('transformador', 'Transformador'),
-        ('interruptor', 'Interruptor'),
-    ]
-
     idpronostico = models.AutoField(db_column='idPronostico', primary_key=True)
-    tipo_equipo = models.CharField(max_length=15, choices=TIPO_EQUIPO_CHOICES)
-    transformador = models.ForeignKey('Transformadores', on_delete=models.CASCADE,
-                                     db_column='Transformadores_idTransformadores',
-                                     blank=True, null=True)
     interruptor = models.ForeignKey('Interruptores', on_delete=models.CASCADE,
                                    db_column='Interruptores_idInterruptores',
                                    blank=True, null=True)
-    tiempo_apertura = models.DecimalField(max_digits=10, decimal_places=2, help_text='Tiempo en milisegundos')
-    tiempo_cierre = models.DecimalField(max_digits=10, decimal_places=2, help_text='Tiempo en milisegundos')
-    numero_operaciones = models.IntegerField()
-    corriente_falla = models.DecimalField(max_digits=10, decimal_places=2, help_text='Corriente en kA')
-    resistencia_contactos = models.DecimalField(max_digits=30, decimal_places=20, help_text='Resistencia en µΩ')
     fecha_mantenimiento = models.DateField()
     fecha_creacion = models.DateTimeField(default=timezone.now)
 
-    # Campos calculados (TODO: implementar lógica real de cálculo basada en modelos predictivos)
-    probabilidad_mantenimiento = models.DecimalField(max_digits=5, decimal_places=2, help_text='Probabilidad estimada de requerir mantenimiento (%)', blank=True, null=True)
-    fecha_programada = models.DateField(help_text='Fecha programada (cada 3 años)', blank=True, null=True)
-    fecha_optima_sugerida = models.DateField(help_text='Fecha óptima sugerida según condición del equipo', blank=True, null=True)
+    # Índices calculados del estado actual (de la última medición)
+    I_DM = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
+    I_EE = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
+    I_M = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
+
+    # Memoria histórica
+    I_M_prev = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
+
+    # Tendencia ΔH(t) = IM(t) - IM(t-1)
+    delta_IM = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
+
+    # Probabilidad de mantenimiento Pmant(t)
+    Pmant = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
+
+    # Fecha recomendada para el próximo mantenimiento (calculada a partir de Pmant)
+    fecha_recomendada = models.DateField(null=True, blank=True)
 
     class Meta:
         db_table = 'pronosticos'
 
     def __str__(self):
-        if self.tipo_equipo == 'transformador' and self.transformador:
-            return f"Pronóstico {self.idpronostico} - Transformador {self.transformador.nombre}"
-        elif self.tipo_equipo == 'interruptor' and self.interruptor:
+        if self.interruptor:
             return f"Pronóstico {self.idpronostico} - Interruptor {self.interruptor.nombre}"
         return f"Pronóstico {self.idpronostico}"
 
@@ -267,58 +268,59 @@ class PronosticosTransformadores(models.Model):
 
     # ===== DATOS DE ENTRADA - ÍNDICE FUNCIONAL =====
     relacion_transformacion = models.DecimalField(
-        max_digits=6, decimal_places=3,
+        max_digits=6, decimal_places=3, blank=True, null=True,
         help_text='% error TTR'
     )
     resistencia_devanados = models.DecimalField(
-        max_digits=6, decimal_places=3,
+        max_digits=6, decimal_places=3, blank=True, null=True,
         help_text='% error'
     )
     corriente_excitacion = models.PositiveSmallIntegerField(
+        blank=True, null=True,
         help_text='Patrón: 2=L-H-L, 5=H-L-H'
     )
 
     # ===== DATOS DE ENTRADA - GASES DISUELTOS (DGA) =====
-    hidrogeno = models.DecimalField(max_digits=10, decimal_places=2)
-    metano = models.DecimalField(max_digits=10, decimal_places=2)
-    etano = models.DecimalField(max_digits=10, decimal_places=2)
-    etileno = models.DecimalField(max_digits=10, decimal_places=2)
-    acetileno = models.DecimalField(max_digits=10, decimal_places=2)
-    dioxido_carbono = models.DecimalField(max_digits=10, decimal_places=2)
-    monoxido_carbono = models.DecimalField(max_digits=10, decimal_places=2)
+    hidrogeno = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    metano = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    etano = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    etileno = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    acetileno = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    dioxido_carbono = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    monoxido_carbono = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
 
     # ===== DATOS DE ENTRADA - ÍNDICE DIELÉCTRICO =====
     factor_potencia = models.DecimalField(
-        max_digits=6, decimal_places=3,
+        max_digits=6, decimal_places=3, blank=True, null=True,
         help_text='%'
     )
     rigidez_dielectrica = models.DecimalField(
-        max_digits=10, decimal_places=2,
+        max_digits=10, decimal_places=2, blank=True, null=True,
         help_text='KV'
     )
     tension_interfacial = models.DecimalField(
-        max_digits=10, decimal_places=2,
+        max_digits=10, decimal_places=2, blank=True, null=True,
         help_text='mN/m'
     )
     numero_acidez = models.DecimalField(
-        max_digits=6, decimal_places=4,
+        max_digits=6, decimal_places=4, blank=True, null=True,
         help_text='mg KOH/g'
     )
     contenido_humedad = models.DecimalField(
-        max_digits=10, decimal_places=2,
+        max_digits=10, decimal_places=2, blank=True, null=True,
         help_text='mg/kg o ppm'
     )
-    color = models.DecimalField(max_digits=4, decimal_places=2)
+    color = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True)
     factor_potencia_liquido = models.DecimalField(
-        max_digits=6, decimal_places=4,
+        max_digits=6, decimal_places=4, blank=True, null=True,
         help_text='Factor de potencia líquido 25%'
     )
     inhibidor_oxidacion = models.DecimalField(
-        max_digits=6, decimal_places=4,
+        max_digits=6, decimal_places=4, blank=True, null=True,
         help_text='%'
     )
     grado_polimerizacion = models.DecimalField(
-        max_digits=10, decimal_places=2,
+        max_digits=10, decimal_places=2, blank=True, null=True,
         help_text='DP - Grado de Polimerización (Tabla 16)'
     )
 

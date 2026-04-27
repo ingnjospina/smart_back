@@ -20,6 +20,7 @@ from .models import (
     MedicionesTransformadores,
     Transformadores,
     Interruptores,
+    MedicionesInterruptores,
     AlertasInterruptores,
     Pronosticos,
     PronosticosTransformadores
@@ -426,37 +427,25 @@ class MedicionesInterruptoresCreateView(APIView):
         if serializer.is_valid():
             serializer.save()
             try:
-                # Obtener y validar los nuevos datos de apertura y cierre
                 N_O = float(serializer.validated_data.get("numero_operaciones"))
-
-                T_A_A = float(serializer.validated_data.get("tiempo_apertura_A"))
-                T_A_B = float(serializer.validated_data.get("tiempo_apertura_B"))
-                T_A_C = float(serializer.validated_data.get("tiempo_apertura_C"))
-
-                T_C_A = float(serializer.validated_data.get("tiempo_cierre_A"))
-                T_C_B = float(serializer.validated_data.get("tiempo_cierre_B"))
-                T_C_C = float(serializer.validated_data.get("tiempo_cierre_C"))
-
+                T_A = float(serializer.validated_data.get("tiempo_apertura_A"))
+                T_C = float(serializer.validated_data.get("tiempo_cierre_A"))
                 I_F = float(serializer.validated_data.get("corriente_falla"))
-
-                R_C_R = float(serializer.validated_data.get("resistencia_contactos_R"))
-                R_C_S = float(serializer.validated_data.get("resistencia_contactos_S"))
-                R_C_T = float(serializer.validated_data.get("resistencia_contactos_T"))
-
-                # Calcular promedio de resistencia de contactos
-                R_C = (R_C_R + R_C_S + R_C_T) / 3
+                R_C = float(serializer.validated_data.get("resistencia_contactos_R"))
+                fecha_mantenimiento = request.data.get("fecha_mantenimiento")
 
                 id_interruptor = serializer.validated_data.get("Interruptores_idInterruptores")
-
                 id_interruptor_obj = Interruptores.objects.get(idinterruptores=id_interruptor)
-
-                # Calcular promedio de tiempos de apertura y cierre
-                T_A = (T_A_A + T_A_B + T_A_C) / 3
-                T_C = (T_C_A + T_C_B + T_C_C) / 3
 
                 # Crear instancia de interruptor con los promedios calculados
                 interruptor = InterruptorPotencia(N_O, T_A, T_C, I_F, R_C)
-                _, _, I_M = interruptor.calcular_indices()
+                I_DM, I_EE, I_M = interruptor.calcular_indices()
+
+                medicion = MedicionesInterruptores.objects.get(pk=serializer.instance.pk)
+                medicion.I_DM = round(I_DM, 2)
+                medicion.I_EE = round(I_EE, 2)
+                medicion.I_M = round(I_M, 2)
+                medicion.save()
 
                 # Generar alerta y enviar email si es necesario al usuario logueado
                 usuario_email = request.user.correo if request.user.is_authenticated else None
@@ -470,14 +459,16 @@ class MedicionesInterruptoresCreateView(APIView):
                     tipo_alerta=alerta["color_alerta"],
                     condicion=alerta["mensaje_condicion"],
                     recomendacion=alerta["recomendacion"],
-                    fecha_medicion=datetime.now()
+                    fecha_mantenimiento=fecha_mantenimiento if fecha_mantenimiento else None
                 )
 
                 return Response(
                     {
                         "message": "Medición de interruptor registrada exitosamente.",
                         "data": serializer.data,
-                        "valor_medicion": f"{I_M:.2f}",
+                        "I_DM": f"{I_DM:.2f}",
+                        "I_EE": f"{I_EE:.2f}",
+                        "I_M": f"{I_M:.2f}",
                         "tipo_alerta": alerta["color_alerta"],
                         "condicion": alerta["mensaje_condicion"],
                         "id_alerta": alerta_db.id,
@@ -491,6 +482,17 @@ class MedicionesInterruptoresCreateView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class MedicionesInterruptoresByInterruptorView(APIView):
+    permission_classes = [IsAuthenticated, IsTecnicoOrAdmin]
+
+    def get(self, request, pk, *args, **kwargs):
+        mediciones = MedicionesInterruptores.objects.filter(
+            Interruptores_idInterruptores=pk
+        ).order_by('-idMediciones_Interruptores')
+        serializer = MedicionesInterruptoresSerializer(mediciones, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class AlertasInterruptoresListView(APIView):
@@ -549,23 +551,106 @@ class PronosticosCreateView(APIView):
     permission_classes = [IsAuthenticated, IsTecnicoOrAdmin]
 
     def post(self, request, *args, **kwargs):
-        serializer = PronosticosSerializer(data=request.data)
-        if serializer.is_valid():
-            try:
-                serializer.save()
-                return Response(
-                    {
-                        "message": "Pronóstico registrado exitosamente.",
-                        "data": serializer.data,
-                    },
-                    status=status.HTTP_201_CREATED
-                )
-            except Exception as e:
-                return Response(
-                    {"message": "Ocurrió un error al guardar el pronóstico.", "error": str(e)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        from services.PronosticoInterruptor import calcular_pmant, calcular_fecha_recomendada
+        from datetime import date as date_type
+
+        interruptor_id = request.data.get('interruptor')
+        fecha_mantenimiento_str = request.data.get('fecha_mantenimiento')
+
+        if not interruptor_id or not fecha_mantenimiento_str:
+            return Response(
+                {"error": "Debe proporcionar interruptor y fecha_mantenimiento."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            interruptor_obj = Interruptores.objects.get(idinterruptores=interruptor_id)
+        except Interruptores.DoesNotExist:
+            return Response({"error": "Interruptor no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get last 2 measurements ordered newest first
+        mediciones = list(
+            MedicionesInterruptores.objects.filter(
+                Interruptores_idInterruptores=interruptor_id
+            ).order_by('-idMediciones_Interruptores')[:2]
+        )
+
+        if len(mediciones) == 0:
+            return Response(
+                {"error": "No hay mediciones registradas. Debe ingresar al menos una medición antes de generar un pronóstico."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        m_current = mediciones[0]
+        i_dm = float(m_current.I_DM) if m_current.I_DM is not None else 0.0
+        i_ee = float(m_current.I_EE) if m_current.I_EE is not None else 0.0
+        i_m = float(m_current.I_M) if m_current.I_M is not None else 0.0
+
+        if len(mediciones) == 1:
+            # New equipment: treat previous IM as 0 (perfect condition)
+            i_m_prev = 0.0
+            pmant_prev = 0.0
+        else:
+            m_prev = mediciones[1]
+            i_m_prev = float(m_prev.I_M) if m_prev.I_M is not None else 0.0
+            last_pronostico = Pronosticos.objects.filter(
+                interruptor=interruptor_obj
+            ).order_by('-fecha_creacion').first()
+            pmant_prev = float(last_pronostico.Pmant) if last_pronostico and last_pronostico.Pmant is not None else 0.0
+
+        delta_im = i_m - i_m_prev
+
+        try:
+            fecha_mant = datetime.strptime(fecha_mantenimiento_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+
+        hoy = date_type.today()
+        meses_desde_mant = (hoy.year - fecha_mant.year) * 12 + (hoy.month - fecha_mant.month)
+
+        ta = float(m_current.tiempo_apertura_A)
+        tc = float(m_current.tiempo_cierre_A)
+        no = float(m_current.numero_operaciones)
+        if_ = float(m_current.corriente_falla)
+        rc = float(m_current.resistencia_contactos_R)
+
+        pmant = calcular_pmant(ta, tc, no, if_, rc, i_m_prev, pmant_prev, meses_desde_mant, delta_im)
+        fecha_recomendada = calcular_fecha_recomendada(pmant, fecha_mant)
+
+        try:
+            pronostico = Pronosticos.objects.create(
+                interruptor=interruptor_obj,
+                fecha_mantenimiento=fecha_mant,
+                I_DM=round(i_dm, 4),
+                I_EE=round(i_ee, 4),
+                I_M=round(i_m, 4),
+                I_M_prev=round(i_m_prev, 4),
+                delta_IM=round(delta_im, 4),
+                Pmant=round(pmant, 4),
+                fecha_recomendada=fecha_recomendada,
+            )
+            return Response(
+                {
+                    "message": "Pronóstico registrado exitosamente.",
+                    "data": {
+                        "idpronostico": pronostico.idpronostico,
+                        "I_DM": round(i_dm, 4),
+                        "I_EE": round(i_ee, 4),
+                        "I_M": round(i_m, 4),
+                        "I_M_prev": round(i_m_prev, 4),
+                        "delta_IM": round(delta_im, 4),
+                        "Pmant": round(pmant * 100, 2),
+                        "fecha_mantenimiento": fecha_mantenimiento_str,
+                        "fecha_recomendada": fecha_recomendada.strftime('%Y-%m-%d'),
+                    }
+                },
+                status=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            return Response(
+                {"message": "Ocurrió un error al guardar el pronóstico.", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class PronosticosListView(APIView):
@@ -573,19 +658,11 @@ class PronosticosListView(APIView):
 
     def get(self, request, *args, **kwargs):
         pronosticos = []
-        tipo_equipo = request.query_params.get('tipo_equipo')
-        id_transformador = request.query_params.get('idTransformador')
         id_interruptor = request.query_params.get('idInterruptor')
         fecha_desde = request.query_params.get('fecha_desde')
         fecha_hasta = request.query_params.get('fecha_hasta')
 
         filters = Q()
-
-        if tipo_equipo:
-            filters &= Q(tipo_equipo=tipo_equipo)
-
-        if id_transformador:
-            filters &= Q(transformador=id_transformador)
 
         if id_interruptor:
             filters &= Q(interruptor=id_interruptor)
@@ -597,27 +674,17 @@ class PronosticosListView(APIView):
         elif fecha_hasta:
             filters &= Q(fecha_creacion__lte=fecha_hasta)
 
-        # Aplicar filtros
         queryset = Pronosticos.objects.filter(filters).order_by('-fecha_creacion')
         pronosticos_serializados = PronosticosSerializer(queryset, many=True).data
 
-        # Añadir información del transformador o interruptor
         for pronostico in pronosticos_serializados:
             equipo_data = None
-
-            if pronostico['tipo_equipo'] == 'transformador' and pronostico['transformador']:
-                try:
-                    transformador = Transformadores.objects.get(idtransformadores=pronostico['transformador'])
-                    equipo_data = TransformadoresSerializer(transformador).data
-                except Transformadores.DoesNotExist:
-                    equipo_data = None
-
-            elif pronostico['tipo_equipo'] == 'interruptor' and pronostico['interruptor']:
+            if pronostico['interruptor']:
                 try:
                     interruptor = Interruptores.objects.get(idinterruptores=pronostico['interruptor'])
                     equipo_data = InterruptoresSerializer(interruptor).data
                 except Interruptores.DoesNotExist:
-                    equipo_data = None
+                    pass
 
             pronosticos.append({
                 "pronostico": pronostico,
