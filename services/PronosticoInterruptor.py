@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from datetime import date as date_type
+from datetime import date as date_type, timedelta
 from dateutil.relativedelta import relativedelta
 np.random.seed(42)
 _n = 1000
@@ -49,6 +49,8 @@ def calcular_pmant(ta, tc, no, if_, rc, im_prev, pmant_prev, meses_desde_mant, d
 
 
 def calcular_fecha_recomendada(pmant: float, fecha_mantenimiento: date_type) -> date_type:
-    """fecha_mantenimiento + round((1 - Pmant) * 36) meses."""
+    """fecha_mantenimiento + round((1 - Pmant) * 36) meses. Mínimo mañana."""
     meses = max(1, round((1 - pmant) * 36))
-    return fecha_mantenimiento + relativedelta(months=meses)
+    fecha = fecha_mantenimiento + relativedelta(months=meses)
+    manana = date_type.today() + timedelta(days=1)
+    return max(fecha, manana)
