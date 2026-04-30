@@ -484,6 +484,18 @@ class MedicionesInterruptoresCreateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class MedicionesInterruptoresListView(APIView):
+    permission_classes = [IsAuthenticated, IsTecnicoOrAdmin]
+
+    def get(self, request, *args, **kwargs):
+        id_interruptor = request.query_params.get('idInterruptor')
+        qs = MedicionesInterruptores.objects.all().order_by('-idMediciones_Interruptores')
+        if id_interruptor:
+            qs = qs.filter(Interruptores_idInterruptores=id_interruptor)
+        serializer = MedicionesInterruptoresSerializer(qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class MedicionesInterruptoresByInterruptorView(APIView):
     permission_classes = [IsAuthenticated, IsTecnicoOrAdmin]
 
