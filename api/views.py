@@ -564,7 +564,11 @@ class PronosticosCreateView(APIView):
     permission_classes = [IsAuthenticated, IsTecnicoOrAdmin]
 
     def post(self, request, *args, **kwargs):
-        from services.PronosticoInterruptor import calcular_pmant, calcular_fecha_recomendada
+        from services.PronosticoInterruptor import (
+            calcular_pmant,
+            calcular_pmant_tabla,
+            calcular_fecha_recomendada,
+        )
         from datetime import date as date_type
 
         interruptor_id = request.data.get('interruptor')
@@ -632,7 +636,11 @@ class PronosticosCreateView(APIView):
         if_ = float(m_current.corriente_falla) / 1000.0        # A  -> kA
         rc = float(m_current.resistencia_contactos_R) * 1e6    # Ω  -> µΩ
 
-        pmant = calcular_pmant(ta, tc, no, if_, rc, i_m_prev, pmant_prev, meses_desde_mant, delta_im)
+        # PROVISIONAL: Pmant se deriva de la tabla de rangos de Nelson a partir
+        # del índice de salud, en lugar del modelo. Para volver al RandomForest,
+        # descomentar la línea siguiente y comentar la de la tabla.
+        # pmant = calcular_pmant(ta, tc, no, if_, rc, i_m_prev, pmant_prev, meses_desde_mant, delta_im)
+        pmant = calcular_pmant_tabla(i_m)
         fecha_recomendada = calcular_fecha_recomendada(pmant, fecha_mant)
 
         try:

@@ -48,6 +48,33 @@ def calcular_pmant(ta, tc, no, if_, rc, im_prev, pmant_prev, meses_desde_mant, d
     return float(_modelo.predict_proba(entrada)[0, 1])
 
 
+def calcular_pmant_tabla(i_m):
+    """PROVISIONAL - Pmant a partir de la tabla de rangos entregada por Nelson.
+
+    Sustituye temporalmente a calcular_pmant() mientras se define el modelo
+    definitivo. El RandomForest de arriba se conserva intacto.
+
+        IM (% salud)   Pmant        color
+        85 - 100       0.00 - 0.30  verde
+        75 - 85        0.30 - 0.60  amarillo
+        50 - 75        0.60 - 0.80  naranja
+         0 - 50        0.80 - 1.00  rojo
+
+    Se devuelve el punto medio de cada rango.
+
+    i_m: índice de salud normalizado (0-1). Retorna Pmant en 0-1.
+    """
+    im_pct = float(i_m) * 100
+
+    if im_pct >= 85:
+        return 0.15
+    if im_pct >= 75:
+        return 0.45
+    if im_pct >= 50:
+        return 0.70
+    return 0.90
+
+
 def calcular_fecha_recomendada(pmant: float, fecha_mantenimiento: date_type) -> date_type:
     """fecha_mantenimiento + round((1 - Pmant) * 36) meses. Mínimo mañana."""
     meses = max(1, round((1 - pmant) * 36))
