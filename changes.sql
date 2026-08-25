@@ -49,3 +49,12 @@ ALTER TABLE alertas_interruptores
 -- Calculada automáticamente según Pmant: ≥75%→1mes, ≥50%→3meses, ≥25%→6meses, <25%→12meses
 ALTER TABLE pronosticos
     ADD COLUMN fecha_recomendada DATE NULL COMMENT 'Fecha recomendada para el próximo mantenimiento';
+
+-- [25/08/2026] Precisión de índices en mediciones_interruptores
+-- Los índices pasan a escala normalizada 0-1 (I_M deja de guardarse como
+-- porcentaje). Con DECIMAL(6,2) se perdía toda la resolución: 0.2062 -> 0.21.
+-- Se alinean con la precisión que ya tenía la tabla 'pronosticos'.
+ALTER TABLE mediciones_interruptores
+    MODIFY COLUMN I_DM DECIMAL(8,4) NULL,
+    MODIFY COLUMN I_EE DECIMAL(8,4) NULL,
+    MODIFY COLUMN I_M  DECIMAL(8,4) NULL;

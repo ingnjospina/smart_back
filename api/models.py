@@ -162,9 +162,11 @@ class MedicionesInterruptores(models.Model):
 
     Interruptores_idInterruptores = models.IntegerField()
 
-    I_DM = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
-    I_EE = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
-    I_M = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    # Índices normalizados en escala 0-1. Requieren 4 decimales: con 2 se
+    # perdía toda la resolución (0.2062 -> 0.21).
+    I_DM = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
+    I_EE = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
+    I_M = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
 
     class Meta:
         db_table = "mediciones_interruptores"

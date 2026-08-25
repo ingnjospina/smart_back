@@ -12,6 +12,10 @@ class AlertaInterruptorEmail:
     def generar_alerta_interruptor(I_M, id_interruptor, usuario_email=None, usuario_nombre=None):
         send_message = False
 
+        # I_M llega normalizado en escala 0-1; los rangos de condición
+        # están definidos en porcentaje (%IM), por eso se escala aquí.
+        I_M = float(I_M) * 100
+
         # Diccionario de colores HTML según la alerta
         color_alerta_html = {
             "Azul": "#0000FF",
@@ -98,7 +102,7 @@ class AlertaInterruptorEmail:
                             <p>Se ha detectado una alerta en el siguiente interruptor:</p>
                             <hr style="margin: 15px 0;">
                             <p><span class="highlight">Interruptor:</span> {id_interruptor.nombre}</p>
-                            <p><span class="highlight">Valor de Medición:</span> <span class="alert-color">{I_M:.2f}</span></p>
+                            <p><span class="highlight">Valor de Medición:</span> <span class="alert-color">{I_M:.2f}%</span></p>
                             <p><span class="highlight">Fecha de Medición:</span> {fecha_medicion}</p>
                             <p><span class="highlight">Condición:</span> <span class="alert-color">{alerta['mensaje_condicion']}</span></p>
                             <p><span class="highlight">Recomendación:</span> {alerta['recomendacion']}</p>
@@ -154,7 +158,8 @@ class AlertaInterruptorEmail:
             "Rojo": "#dc3545"
         }
 
-        I_M = float(pronostico_data.get('I_M') or 0)
+        # I_M se almacena normalizado en 0-1; se escala a % para clasificar.
+        I_M = float(pronostico_data.get('I_M') or 0) * 100
         if 86 <= I_M <= 100:
             condicion, color_alerta = "Muy Bueno", "Azul"
         elif 71 <= I_M <= 85:

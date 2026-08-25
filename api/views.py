@@ -442,9 +442,9 @@ class MedicionesInterruptoresCreateView(APIView):
                 I_DM, I_EE, I_M = interruptor.calcular_indices()
 
                 medicion = MedicionesInterruptores.objects.get(pk=serializer.instance.pk)
-                medicion.I_DM = round(I_DM, 2)
-                medicion.I_EE = round(I_EE, 2)
-                medicion.I_M = round(I_M, 2)
+                medicion.I_DM = round(I_DM, 4)
+                medicion.I_EE = round(I_EE, 4)
+                medicion.I_M = round(I_M, 4)
                 medicion.save()
 
                 # Generar alerta y enviar email si es necesario al usuario logueado
@@ -455,7 +455,7 @@ class MedicionesInterruptoresCreateView(APIView):
                 # Guardar la alerta en la base de datos
                 alerta_db = AlertasInterruptores.objects.create(
                     id_interruptor=id_interruptor_obj,
-                    valor_medicion=f"{I_M:.2f}",
+                    valor_medicion=f"{I_M * 100:.2f}",
                     tipo_alerta=alerta["color_alerta"],
                     condicion=alerta["mensaje_condicion"],
                     recomendacion=alerta["recomendacion"],
@@ -466,9 +466,10 @@ class MedicionesInterruptoresCreateView(APIView):
                     {
                         "message": "Medición de interruptor registrada exitosamente.",
                         "data": serializer.data,
-                        "I_DM": f"{I_DM:.2f}",
-                        "I_EE": f"{I_EE:.2f}",
-                        "I_M": f"{I_M:.2f}",
+                        "I_DM": f"{I_DM:.4f}",
+                        "I_EE": f"{I_EE:.4f}",
+                        "I_M": f"{I_M:.4f}",
+                        "I_M_porcentaje": f"{I_M * 100:.2f}",
                         "tipo_alerta": alerta["color_alerta"],
                         "condicion": alerta["mensaje_condicion"],
                         "id_alerta": alerta_db.id,
@@ -620,11 +621,16 @@ class PronosticosCreateView(APIView):
         hoy = date_type.today()
         meses_desde_mant = (hoy.year - fecha_mant.year) * 12 + (hoy.month - fecha_mant.month)
 
+        # El modelo de pronóstico fue entrenado con la corriente de falla en kA
+        # y la resistencia de contactos en µΩ, mientras que la medición las
+        # almacena en A y Ω. Sin esta conversión el modelo recibe valores varios
+        # órdenes de magnitud fuera de su rango de entrenamiento y predice
+        # mantenimiento urgente para cualquier equipo.
         ta = float(m_current.tiempo_apertura_A)
         tc = float(m_current.tiempo_cierre_A)
         no = float(m_current.numero_operaciones)
-        if_ = float(m_current.corriente_falla)
-        rc = float(m_current.resistencia_contactos_R)
+        if_ = float(m_current.corriente_falla) / 1000.0        # A  -> kA
+        rc = float(m_current.resistencia_contactos_R) * 1e6    # Ω  -> µΩ
 
         pmant = calcular_pmant(ta, tc, no, if_, rc, i_m_prev, pmant_prev, meses_desde_mant, delta_im)
         fecha_recomendada = calcular_fecha_recomendada(pmant, fecha_mant)
